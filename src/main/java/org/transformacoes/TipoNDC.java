@@ -1,5 +1,5 @@
 package org.transformacoes;
 
-public class TipoNDC {
+public enum TipoNDC {
     //pessoa 2
 }
