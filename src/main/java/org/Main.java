@@ -1,15 +1,15 @@
 package org;
 
 import org.input.LeitorEntrada;
-import org.model.JanelaMundo;
-import org.model.Ponto;
-import org.model.ResolucaoTela;
+import org.model.*;
+import org.render.Display;
 
 public class Main {
 
     public static void main(String[] args) {
 
         LeitorEntrada leitor = new LeitorEntrada();
+        
 
         System.out.println("=== JANELA DO MUNDO ===");
 
@@ -32,11 +32,17 @@ public class Main {
         System.out.println();
 
         System.out.println("=== PONTO ===");
+        
 
-        double x = leitor.lerDouble("x: ");
-        double y = leitor.lerDouble("y: ");
+
+        int x = largura/2;
+        int y = altura/2;
 
         Ponto ponto = new Ponto(x, y);
+        System.out.println(ponto);
+
+       
+        
 
         System.out.println();
         System.out.println("=== DADOS LIDOS ===");
@@ -53,6 +59,8 @@ public class Main {
 
         System.out.println("Ponto:");
         System.out.println(ponto);
+
+        Display.exibir(tela, ponto);
 
         leitor.fechar();
     }
