@@ -26,5 +26,9 @@ public class TipoNDC {
         this.nNDCY = nNDCY;
     }
 
+    @Override
+    public String toString() {
+        return "(" + nNDCX + ", " + nNDCY + ")";
+    }
 
 }

@@ -24,4 +24,9 @@ public class TipoDC {
     public void setdcy(double dcy) {
         this.dcy = dcy;
     }
+
+    @Override
+    public String toString() {
+        return "(" + dcx + ", " + dcy + ")";
+    }
 }

@@ -6,25 +6,26 @@ import javax.swing.JPanel;
 import org.model.*;
 
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Graphics;
 
-
+// A janela do dispositivo grafico: fundo limpo, sem grade, mostrando o pixel ativo em verde.
 public class Display extends JPanel {
-    //pessoa 3
-    private Ponto ponto;
-    private ResolucaoTela resolucaoTela;
 
-    public Display(Ponto ponto, ResolucaoTela resolucaoTela) {
-        this.ponto = ponto;
-        this.resolucaoTela = resolucaoTela;
+    private static final Color COR_PIXEL = new Color(0x00FF00); // verde puro
+
+    private final TipoDC pixel;
+
+    public Display(TipoDC pixel) {
+        this.pixel = pixel;
         setBackground(Color.BLACK);
     }
 
-    public static void exibir(ResolucaoTela resolucao, Ponto ponto) {
-        
+    public static void exibir(ResolucaoTela resolucao, TipoDC pixel) {
+
         JFrame frame = new JFrame("Coordenada de Dispositivo (Pixel)");
-        Display painel = new Display(ponto, resolucao);
-        painel.setPreferredSize(new java.awt.Dimension(resolucao.getLargura(), resolucao.getAltura()));
+        Display painel = new Display(pixel);
+        painel.setPreferredSize(new Dimension(resolucao.getLargura(), resolucao.getAltura()));
 
         frame.add(painel);
         frame.pack();
@@ -35,18 +36,8 @@ public class Display extends JPanel {
 
     @Override
     protected void paintComponent(Graphics g) {
-        setBackground(Color.BLACK);
         super.paintComponent(g); // limpa o painel com a cor de fundo
 
-        // --- Desenha o pixel exato (1x1), como resultado "puro" da transformação ---
-        g.setColor(Color.green);
-        g.fillRect(ponto.getX(), ponto.getY(), 1, 1);
-
-        // --- Marcador maior ao redor, só para facilitar a visualização na tela ---
-        /*
-        g.setColor(Color.RED);
-        g.drawOval(ponto.getX() - 5, ponto.getY() - 5, 10, 10);
-        g.drawString("(" + ponto.getX() + ", " + ponto.getY() + ")", ponto.getX() + 10, ponto.getY());
-        */
+        DrawPixel.drawPixel(g, (int) pixel.getdcx(), (int) pixel.getdcy(), COR_PIXEL);
     }
 }

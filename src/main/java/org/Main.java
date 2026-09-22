@@ -3,13 +3,14 @@ package org;
 import org.input.LeitorEntrada;
 import org.model.*;
 import org.render.Display;
+import org.transformacoes.Transformador;
 
 public class Main {
 
     public static void main(String[] args) {
 
         LeitorEntrada leitor = new LeitorEntrada();
-        
+        Transformador transformador = new Transformador();
 
         System.out.println("=== JANELA DO MUNDO ===");
 
@@ -21,7 +22,6 @@ public class Main {
         JanelaMundo janela = new JanelaMundo(xmin, xmax, ymin, ymax);
 
         System.out.println();
-
         System.out.println("=== RESOLUCAO ===");
 
         int largura = leitor.lerInt("Largura: ");
@@ -30,38 +30,49 @@ public class Main {
         ResolucaoTela tela = new ResolucaoTela(largura, altura);
 
         System.out.println();
+        System.out.println("=== CENARIO NDC ===");
+        System.out.println("1) [0,1] x [0,1]");
+        System.out.println("2) [-1,1] x [-1,1]");
 
-        System.out.println("=== PONTO ===");
-        
+        int opcao = leitor.lerInt("Opcao: ");
 
+        double ndcMin = 0.0;
+        double ndcMax = 1.0;
 
-        int x = largura/2;
-        int y = altura/2;
+        if (opcao == 2) {
+            ndcMin = -1.0;
+        }
+
+        System.out.println();
+        System.out.println("=== PONTO (JANELA DO MUNDO) ===");
+
+        double x = leitor.lerDouble("x: ");
+        double y = leitor.lerDouble("y: ");
 
         Ponto ponto = new Ponto(x, y);
-        System.out.println(ponto);
-
-       
-        
-
-        System.out.println();
-        System.out.println("=== DADOS LIDOS ===");
-
-        System.out.println("Janela Mundo:");
-        System.out.println("[" + janela.getXmin() + ", " + janela.getXmax() + "] x [" + janela.getYmin() + ", " + janela.getYmax() + "]");
-
-        System.out.println();
-
-        System.out.println("Resolucao:");
-        System.out.println(tela.getLargura() + " x " + tela.getAltura());
-
-        System.out.println();
-
-        System.out.println("Ponto:");
-        System.out.println(ponto);
-
-        Display.exibir(tela, ponto);
 
         leitor.fechar();
+
+        TipoNDC ndc = transformador.userToNDC(janela, ponto, ndcMin, ndcMax);
+        TipoDC dc = transformador.ndcToDC(tela, ndc, ndcMin, ndcMax);
+
+        Ponto pontoValidado = transformador.ndcToUser(janela, ndc, ndcMin, ndcMax);
+        TipoNDC ndcValidado = transformador.inpToNDC(tela, dc, ndcMin, ndcMax);
+
+        System.out.println();
+        System.out.println("=== RESULTADO ===");
+        System.out.println("Janela Mundo: [" + xmin + ", " + xmax + "] x [" + ymin + ", " + ymax + "]");
+        System.out.println("Resolucao: " + largura + " x " + altura);
+        System.out.println("Cenario NDC: [" + ndcMin + ", " + ndcMax + "]");
+        System.out.println();
+        System.out.println("Ponto (user) ......... " + ponto);
+        System.out.println("user_to_ndc -> NDC .... " + ndc);
+        System.out.println("ndc_to_dc -> DC ....... " + dc);
+        System.out.println();
+        System.out.println("Validacao:");
+        System.out.println("ndc_to_user -> user ... " + pontoValidado);
+        System.out.println("inp_to_ndc -> NDC ..... " + ndcValidado);
+
+        Display.exibir(tela, dc);
     }
 }
