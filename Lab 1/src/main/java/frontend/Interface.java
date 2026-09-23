@@ -18,11 +18,14 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSeparator;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.border.BevelBorder;
 
 import java.awt.BorderLayout;
+import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -41,6 +44,8 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Interface extends JFrame {
 
@@ -64,6 +69,9 @@ public class Interface extends JFrame {
     private JLabel statusLabel;
     private JPanel painelCanvas;
     private Dispositivo dispositivo;
+    private final List<String> historicoTransformacoes = new ArrayList<String>();
+    private CardLayout layoutCards;
+    private JPanel painelCards;
 
     private int arrastarX;
     private int arrastarY;
@@ -82,20 +90,91 @@ public class Interface extends JFrame {
 
         JPanel topo = new JPanel(new BorderLayout());
         topo.add(criarBarraTitulo(), BorderLayout.NORTH);
-        topo.add(criarBarraMenu(), BorderLayout.SOUTH);
         raiz.add(topo, BorderLayout.NORTH);
 
-        raiz.add(criarCaixaFerramentas(), BorderLayout.WEST);
+        layoutCards = new CardLayout();
+        painelCards = new JPanel(layoutCards);
+        painelCards.setBackground(FACE);
+        painelCards.add(criarTelaInicial(), "inicial");
+        painelCards.add(criarTelaPrincipal(), "principal");
+        raiz.add(painelCards, BorderLayout.CENTER);
+
+        setContentPane(raiz);
+    }
+
+    private JPanel criarTelaInicial() {
+        JPanel telaInicial = new JPanel();
+        telaInicial.setLayout(new javax.swing.BoxLayout(telaInicial, javax.swing.BoxLayout.Y_AXIS));
+        telaInicial.setBackground(FACE);
+        telaInicial.setBorder(BorderFactory.createEmptyBorder(30, 40, 30, 40));
+
+        JLabel titulo = new JLabel("CoordinateX");
+        titulo.setAlignmentX(CENTER_ALIGNMENT);
+        titulo.setFont(new Font("SansSerif", Font.BOLD, 40));
+
+        JLabel professor = new JLabel("Professor: Robson Pequeno de Sousa");
+        professor.setAlignmentX(CENTER_ALIGNMENT);
+        professor.setFont(new Font("SansSerif", Font.PLAIN, 25));
+
+        JSeparator divisoria = new JSeparator();
+        divisoria.setAlignmentX(CENTER_ALIGNMENT);
+        divisoria.setMaximumSize(new Dimension(430, 2));
+
+        JLabel equipeTitulo = new JLabel("EQUIPE");
+        equipeTitulo.setAlignmentX(CENTER_ALIGNMENT);
+        equipeTitulo.setFont(new Font("SansSerif", Font.ITALIC, 25));
+
+        JLabel equipe = new JLabel(
+                "Adrielly Carla | Maria Eduarda | Mirelle Casimiro | Nidlan Hendell | Rui Fernando");
+        equipe.setAlignmentX(CENTER_ALIGNMENT);
+        equipe.setFont(new Font("SansSerif", Font.PLAIN, 20));
+
+        JButton iniciar = new JButton("Iniciar");
+        iniciar.setAlignmentX(CENTER_ALIGNMENT);
+        iniciar.setFont(new Font("SansSerif", Font.PLAIN, 20));
+        iniciar.setFocusPainted(false);
+        iniciar.setBackground(FACE);
+        iniciar.setBorder(new BevelBorder(BevelBorder.RAISED));
+        iniciar.setPreferredSize(new Dimension(100, 32));
+        iniciar.setMaximumSize(new Dimension(100, 32));
+        iniciar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                layoutCards.show(painelCards, "principal");
+            }
+        });
+
+        telaInicial.add(javax.swing.Box.createVerticalGlue());
+        telaInicial.add(titulo);
+        telaInicial.add(javax.swing.Box.createVerticalStrut(8));
+        telaInicial.add(professor);
+        telaInicial.add(javax.swing.Box.createVerticalStrut(18));
+        telaInicial.add(divisoria);
+        telaInicial.add(javax.swing.Box.createVerticalStrut(18));
+        telaInicial.add(equipeTitulo);
+        telaInicial.add(javax.swing.Box.createVerticalStrut(8));
+        telaInicial.add(equipe);
+        telaInicial.add(javax.swing.Box.createVerticalStrut(28));
+        telaInicial.add(iniciar);
+        telaInicial.add(javax.swing.Box.createVerticalGlue());
+
+        return telaInicial;
+    }
+
+    private JPanel criarTelaPrincipal() {
+        JPanel telaPrincipal = new JPanel(new BorderLayout());
+        telaPrincipal.setBackground(FACE);
+        telaPrincipal.add(criarBarraMenu(), BorderLayout.NORTH);
+        telaPrincipal.add(criarCaixaFerramentas(), BorderLayout.WEST);
 
         JPanel centro = new JPanel(new BorderLayout());
         centro.setBackground(FACE);
         centro.add(criarPainelEntrada(), BorderLayout.NORTH);
         centro.add(criarCanvas(), BorderLayout.CENTER);
-        raiz.add(centro, BorderLayout.CENTER);
+        telaPrincipal.add(centro, BorderLayout.CENTER);
+        telaPrincipal.add(criarBarraStatus(), BorderLayout.SOUTH);
 
-        raiz.add(criarBarraStatus(), BorderLayout.SOUTH);
-
-        setContentPane(raiz);
+        return telaPrincipal;
     }
 
     private JPanel criarBarraTitulo() {
@@ -110,7 +189,7 @@ public class Interface extends JFrame {
         };
         barra.setPreferredSize(new Dimension(10, 24));
 
-        JLabel titulo = new JLabel("  CG-CoordinateX - Transformacao de Coordenadas (bonus)");
+        JLabel titulo = new JLabel("  LAB1 CG - CoordinateX - Transformacao de Coordenadas");
         titulo.setForeground(Color.WHITE);
         titulo.setFont(new Font("SansSerif", Font.BOLD, 12));
         barra.add(titulo, BorderLayout.WEST);
@@ -203,6 +282,14 @@ public class Interface extends JFrame {
 
         JMenu editar = new JMenu("Editar");
         JMenu exibir = new JMenu("Exibir");
+        JMenuItem verHistorico = new JMenuItem("Ver Histórico");
+        verHistorico.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                mostrarHistorico();
+            }
+        });
+        exibir.add(verHistorico);
         JMenu opcoes = new JMenu("Opcoes");
 
         JMenu ajuda = new JMenu("Ajuda");
@@ -386,6 +473,12 @@ public class Interface extends JFrame {
         JPanel barra = new JPanel(new BorderLayout());
         barra.setBackground(FACE);
         barra.add(statusLabel, BorderLayout.CENTER);
+
+        JLabel participantes = new JLabel(
+                " Grupo: Adrielly Carla | Maria Eduarda | Mirelle Casimiro | Nidlan Hendell | Rui Fernando ");
+        participantes.setFont(new Font("SansSerif", Font.PLAIN, 10));
+        participantes.setBorder(new BevelBorder(BevelBorder.LOWERED));
+        barra.add(participantes, BorderLayout.SOUTH);
         return barra;
     }
 
@@ -436,10 +529,44 @@ public class Interface extends JFrame {
             statusLabel.setText(" (" + transformacao.getNome() + ")  Mundo " + pontoMundo
                     + "  ->  NDC " + ndc + "  ->  Dispositivo " + pixel);
 
+                historicoTransformacoes.add("Janela do mundo: " + janela
+                    + "\nPonto de entrada: " + pontoMundo
+                    + "\nNDC calculado: " + ndc
+                    + "\nPixel de dispositivo: " + pixel
+                    + "\nTransformacao: " + transformacao.getNome());
+
         } catch (NumberFormatException erro) {
             JOptionPane.showMessageDialog(this, "Preencha todos os campos com numeros validos.",
                     "Erro", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private void mostrarHistorico() {
+        JTextArea textoHistorico = new JTextArea();
+        textoHistorico.setEditable(false);
+        textoHistorico.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        textoHistorico.setBackground(Color.WHITE);
+        textoHistorico.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+
+        if (historicoTransformacoes.isEmpty()) {
+            textoHistorico.setText("Nenhuma transformacao realizada nesta sessao.");
+        } else {
+            StringBuilder conteudo = new StringBuilder();
+            for (int indice = 0; indice < historicoTransformacoes.size(); indice++) {
+                conteudo.append("Transformacao ").append(indice + 1).append("\n");
+                conteudo.append(historicoTransformacoes.get(indice));
+                conteudo.append("\n\n");
+            }
+            textoHistorico.setText(conteudo.toString());
+            textoHistorico.setCaretPosition(0);
+        }
+
+        JScrollPane rolagem = new JScrollPane(textoHistorico);
+        rolagem.setPreferredSize(new Dimension(570, 300));
+        rolagem.setBorder(new BevelBorder(BevelBorder.LOWERED));
+
+        JOptionPane.showMessageDialog(this, rolagem, "Histórico de Transformações",
+                JOptionPane.INFORMATION_MESSAGE);
     }
 
     // Ponto de entrada proprio: so abre essa tela se rodar esta classe.
