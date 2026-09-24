@@ -30,20 +30,15 @@ public class Dispositivo {
     }
 
     // Acende UM único pixel no frame buffer.
-    // As fórmulas usam y crescendo para CIMA, mas na tela
-    // a linha 0 fica no TOPO. Por isso invertemos o y.
+    // A origem (0, 0) fica no canto superior esquerdo,
+    // igual à tela do Java, então não precisa inverter nada.
     public void drawPixel(Pixel p, int cor) {
-        int coluna = p.getX();
-        int linha = (ndv - 1) - p.getY();
-        frameBuffer.setRGB(coluna, linha, cor);
+        frameBuffer.setRGB(p.getX(), p.getY(), cor);
     }
 
-    // O clique do mouse vem com y crescendo para BAIXO.
-    // Aqui invertemos para ficar igual ao das fórmulas.
+    // O clique já vem com a origem no canto superior esquerdo.
     public Pixel pixelDoClique(int xTela, int yTela) {
-        int dcx = xTela;
-        int dcy = (ndv - 1) - yTela;
-        return new Pixel(dcx, dcy);
+        return new Pixel(xTela, yTela);
     }
 
     public int getNdh() {
