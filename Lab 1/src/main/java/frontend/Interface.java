@@ -7,6 +7,10 @@ import modelo.Ponto;
 import transformacao.Transformacao;
 import transformacao.TransformacaoNdc01;
 import transformacao.TransformacaoNdc11;
+import tabelacores.ControladorVideo;
+import tabelacores.FrameBufferIndexado;
+import tabelacores.Hexa;
+import tabelacores.TabelaCores;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -39,6 +43,7 @@ import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.image.BufferedImage;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
@@ -73,6 +78,29 @@ public class Interface extends JFrame {
     private CardLayout layoutCards;
     private JPanel painelCards;
 
+    // Lab 1 Extra: tabela de cores
+    private static final int TAMANHO_PALETA = 384; // 64 x 64 blocos de 6 x 6
+    private TabelaCores tabelaCores;
+    private ControladorVideo controladorVideo;
+    private BufferedImage imagemPaleta;
+    private int indiceCorAtual;
+    private int tabelaSelecionada = 1;
+    private JButton botaoTabelaColorida;
+    private JButton botaoTabelaCinza;
+    private JButton botaoTabelaFogo;
+    private JTextField campoIndiceCor;
+    private JPanel painelPaletaCores;
+    private JPanel amostraCor;
+    private JLabel valorCorHex;
+    private JLabel valorIndiceHex;
+    private JLabel valorIndiceDecimal;
+    private JLabel valorIndiceBinario;
+    private JLabel valorCanalR;
+    private JLabel valorCanalG;
+    private JLabel valorCanalB;
+    private JLabel valorNomeTabela;
+    private JLabel statusTabela;
+
     private int arrastarX;
     private int arrastarY;
     private Rectangle limitesRestaurados;
@@ -97,6 +125,7 @@ public class Interface extends JFrame {
         painelCards.setBackground(FACE);
         painelCards.add(criarTelaInicial(), "inicial");
         painelCards.add(criarTelaPrincipal(), "principal");
+        painelCards.add(criarTelaTabelaCores(), "tabela");
         raiz.add(painelCards, BorderLayout.CENTER);
 
         setContentPane(raiz);
@@ -129,20 +158,27 @@ public class Interface extends JFrame {
         equipe.setAlignmentX(CENTER_ALIGNMENT);
         equipe.setFont(new Font("SansSerif", Font.PLAIN, 20));
 
-        JButton iniciar = new JButton("Iniciar");
-        iniciar.setAlignmentX(CENTER_ALIGNMENT);
-        iniciar.setFont(new Font("SansSerif", Font.PLAIN, 20));
-        iniciar.setFocusPainted(false);
-        iniciar.setBackground(FACE);
-        iniciar.setBorder(new BevelBorder(BevelBorder.RAISED));
-        iniciar.setPreferredSize(new Dimension(100, 32));
-        iniciar.setMaximumSize(new Dimension(100, 32));
+        JButton iniciar = criarBotaoInicial("Lab 1 - Coordenadas");
         iniciar.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 layoutCards.show(painelCards, "principal");
             }
         });
+
+        JButton tabelaCores = criarBotaoInicial("Lab 1 Extra - Tabela de Cores");
+        tabelaCores.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                layoutCards.show(painelCards, "tabela");
+            }
+        });
+
+        JPanel botoesIniciais = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
+        botoesIniciais.setBackground(FACE);
+        botoesIniciais.setAlignmentX(CENTER_ALIGNMENT);
+        botoesIniciais.add(iniciar);
+        botoesIniciais.add(tabelaCores);
 
         telaInicial.add(javax.swing.Box.createVerticalGlue());
         telaInicial.add(titulo);
@@ -155,10 +191,360 @@ public class Interface extends JFrame {
         telaInicial.add(javax.swing.Box.createVerticalStrut(8));
         telaInicial.add(equipe);
         telaInicial.add(javax.swing.Box.createVerticalStrut(28));
-        telaInicial.add(iniciar);
+        telaInicial.add(botoesIniciais);
         telaInicial.add(javax.swing.Box.createVerticalGlue());
 
         return telaInicial;
+    }
+
+    private JButton criarBotaoInicial(String texto) {
+        JButton botao = new JButton(texto);
+        botao.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        botao.setFocusPainted(false);
+        botao.setBackground(FACE);
+        botao.setBorder(BorderFactory.createCompoundBorder(
+                new BevelBorder(BevelBorder.RAISED),
+                BorderFactory.createEmptyBorder(6, 14, 6, 14)));
+        return botao;
+    }
+
+    // ===== Lab 1 Extra: tabela de cores (24 bits) para pixel de 12 bits =====
+    // Usa só o núcleo do Lab 1 - Extra (TabelaCores, FrameBufferIndexado,
+    // ControladorVideo). A tela é desta Interface, igual ao Lab 1.
+
+    private JPanel criarTelaTabelaCores() {
+        tabelaCores = new TabelaCores();
+
+        FrameBufferIndexado frameBuffer = new FrameBufferIndexado(TAMANHO_PALETA, TAMANHO_PALETA);
+        frameBuffer.desenharTodosOsIndices();
+        controladorVideo = new ControladorVideo(frameBuffer, tabelaCores);
+
+        JPanel tela = new JPanel(new BorderLayout());
+        tela.setBackground(FACE);
+        tela.add(criarBarraMenuTabela(), BorderLayout.NORTH);
+        tela.add(criarCaixaFerramentasTabela(), BorderLayout.WEST);
+
+        JPanel centro = new JPanel(new BorderLayout());
+        centro.setBackground(FACE);
+        centro.add(criarPainelEntradaTabela(), BorderLayout.NORTH);
+        centro.add(criarAreaTabela(), BorderLayout.CENTER);
+        tela.add(centro, BorderLayout.CENTER);
+        tela.add(criarBarraStatusTabela(), BorderLayout.SOUTH);
+
+        imagemPaleta = controladorVideo.gerarImagem();
+        selecionarIndiceCor(0x180);
+        return tela;
+    }
+
+    private JMenuBar criarBarraMenuTabela() {
+        JMenuBar barra = new JMenuBar();
+        barra.setBackground(FACE);
+
+        JMenu arquivo = new JMenu("Arquivo");
+        JMenuItem inicio = new JMenuItem("Voltar ao inicio");
+        inicio.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                layoutCards.show(painelCards, "inicial");
+            }
+        });
+        JMenuItem sair = new JMenuItem("Sair");
+        sair.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                System.exit(0);
+            }
+        });
+        arquivo.add(inicio);
+        arquivo.add(sair);
+
+        JMenu ajuda = new JMenu("Ajuda");
+        JMenuItem sobre = new JMenuItem("Sobre");
+        sobre.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                JOptionPane.showMessageDialog(Interface.this,
+                        "CG-CoordinateX - Lab 1 Extra\n"
+                                + "Pixel de 12 bits -> 4096 posicoes na tabela\n"
+                                + "Cada posicao guarda uma cor de 24 bits (#RRGGBB)\n",
+                        "Sobre", JOptionPane.INFORMATION_MESSAGE);
+            }
+        });
+        ajuda.add(sobre);
+
+        barra.add(arquivo);
+        barra.add(ajuda);
+        return barra;
+    }
+
+    private JPanel criarCaixaFerramentasTabela() {
+        JPanel caixa = new JPanel(new BorderLayout());
+        caixa.setBackground(FACE);
+        caixa.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
+        caixa.setPreferredSize(new Dimension(90, 10));
+
+        JPanel grade = new JPanel(new GridLayout(0, 1, 4, 4));
+        grade.setBackground(FACE);
+
+        Dimension tamanhoBotao = new Dimension(80, 46);
+
+        botaoTabelaColorida = criarBotaoFerramenta("Colorida", tamanhoBotao);
+        botaoTabelaColorida.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                trocarTabelaCores(1);
+            }
+        });
+
+        botaoTabelaCinza = criarBotaoFerramenta("Cinza", tamanhoBotao);
+        botaoTabelaCinza.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                trocarTabelaCores(2);
+            }
+        });
+
+        botaoTabelaFogo = criarBotaoFerramenta("Fogo", tamanhoBotao);
+        botaoTabelaFogo.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                trocarTabelaCores(3);
+            }
+        });
+
+        grade.add(botaoTabelaColorida);
+        grade.add(botaoTabelaCinza);
+        grade.add(botaoTabelaFogo);
+        caixa.add(grade, BorderLayout.NORTH);
+
+        atualizarBotoesTabela();
+        return caixa;
+    }
+
+    private void atualizarBotoesTabela() {
+        JButton[] botoes = { botaoTabelaColorida, botaoTabelaCinza, botaoTabelaFogo };
+        for (int i = 0; i < botoes.length; i++) {
+            if (i + 1 == tabelaSelecionada) {
+                botoes[i].setBorder(new BevelBorder(BevelBorder.LOWERED));
+            } else {
+                botoes[i].setBorder(new BevelBorder(BevelBorder.RAISED));
+            }
+        }
+    }
+
+    private JPanel criarPainelEntradaTabela() {
+        JPanel painel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
+        painel.setBackground(FACE);
+        painel.setBorder(new BevelBorder(BevelBorder.LOWERED));
+
+        campoIndiceCor = new JTextField("0x180", 6);
+        campoIndiceCor.setBorder(new BevelBorder(BevelBorder.LOWERED));
+
+        JButton verCor = new JButton("Ver cor");
+        verCor.setFocusPainted(false);
+        verCor.setBackground(FACE);
+        verCor.setBorder(BorderFactory.createCompoundBorder(
+                new BevelBorder(BevelBorder.RAISED),
+                BorderFactory.createEmptyBorder(2, 8, 2, 8)));
+
+        ActionListener lerCampo = new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                selecionarIndicePeloCampo();
+            }
+        };
+        campoIndiceCor.addActionListener(lerCampo); // Enter
+        verCor.addActionListener(lerCampo);
+
+        painel.add(new JLabel("indice do pixel (0 a 4095 ou 0x000 a 0xFFF)"));
+        painel.add(campoIndiceCor);
+        painel.add(verCor);
+        return painel;
+    }
+
+    private JPanel criarAreaTabela() {
+        JPanel area = new JPanel(new BorderLayout(6, 0));
+        area.setBackground(FACE);
+        area.setBorder(BorderFactory.createEmptyBorder(4, 0, 0, 0));
+
+        // Paleta: a imagem gerada pelo controlador de video (64 x 64 indices)
+        painelPaletaCores = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                desenharPaleta(g);
+            }
+        };
+        painelPaletaCores.setPreferredSize(new Dimension(TAMANHO_PALETA, TAMANHO_PALETA));
+        painelPaletaCores.setBackground(Color.WHITE);
+        painelPaletaCores.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                int bloco = TAMANHO_PALETA / 64;
+                int coluna = e.getX() / bloco;
+                int linha = e.getY() / bloco;
+                if (coluna < 64 && linha < 64) {
+                    selecionarIndiceCor(linha * 64 + coluna);
+                }
+            }
+        });
+
+        JPanel moldura = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        moldura.setBackground(FACE);
+        moldura.setBorder(new BevelBorder(BevelBorder.LOWERED));
+        moldura.add(painelPaletaCores);
+
+        area.add(moldura, BorderLayout.CENTER);
+        area.add(criarPainelInfoCor(), BorderLayout.EAST);
+        return area;
+    }
+
+    private void desenharPaleta(Graphics g) {
+        g.drawImage(imagemPaleta, 0, 0, null);
+
+        // Moldura branca e preta no bloco selecionado
+        int bloco = TAMANHO_PALETA / 64;
+        int x = (indiceCorAtual % 64) * bloco;
+        int y = (indiceCorAtual / 64) * bloco;
+        g.setColor(Color.WHITE);
+        g.drawRect(x - 1, y - 1, bloco + 1, bloco + 1);
+        g.setColor(Color.BLACK);
+        g.drawRect(x - 2, y - 2, bloco + 3, bloco + 3);
+    }
+
+    private JPanel criarPainelInfoCor() {
+        JPanel painel = new JPanel(new BorderLayout(0, 6));
+        painel.setBackground(FACE);
+        painel.setBorder(BorderFactory.createCompoundBorder(
+                new BevelBorder(BevelBorder.LOWERED),
+                BorderFactory.createEmptyBorder(8, 8, 8, 8)));
+        painel.setPreferredSize(new Dimension(230, 10));
+
+        amostraCor = new JPanel();
+        amostraCor.setPreferredSize(new Dimension(10, 70));
+        amostraCor.setBorder(new BevelBorder(BevelBorder.LOWERED));
+
+        JPanel grade = new JPanel(new GridLayout(0, 2, 4, 6));
+        grade.setBackground(FACE);
+
+        valorCorHex = criarValorInfo();
+        valorIndiceHex = criarValorInfo();
+        valorIndiceDecimal = criarValorInfo();
+        valorIndiceBinario = criarValorInfo();
+        valorCanalR = criarValorInfo();
+        valorCanalG = criarValorInfo();
+        valorCanalB = criarValorInfo();
+        valorNomeTabela = criarValorInfo();
+
+        grade.add(new JLabel("Cor (24 bits)"));
+        grade.add(valorCorHex);
+        grade.add(new JLabel("Indice (hex)"));
+        grade.add(valorIndiceHex);
+        grade.add(new JLabel("Indice (dec)"));
+        grade.add(valorIndiceDecimal);
+        grade.add(new JLabel("12 bits"));
+        grade.add(valorIndiceBinario);
+        grade.add(new JLabel("R"));
+        grade.add(valorCanalR);
+        grade.add(new JLabel("G"));
+        grade.add(valorCanalG);
+        grade.add(new JLabel("B"));
+        grade.add(valorCanalB);
+
+        // O nome da tabela ocupa a linha inteira (nao cabe na coluna da grade)
+        JPanel linhaTabela = new JPanel(new BorderLayout());
+        linhaTabela.setBackground(FACE);
+        linhaTabela.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
+        linhaTabela.add(new JLabel("Tabela"), BorderLayout.NORTH);
+        linhaTabela.add(valorNomeTabela, BorderLayout.CENTER);
+
+        // Deixa as linhas com a altura normal, sem esticar
+        JPanel informacoes = new JPanel(new BorderLayout());
+        informacoes.setBackground(FACE);
+        informacoes.add(grade, BorderLayout.NORTH);
+        informacoes.add(linhaTabela, BorderLayout.CENTER);
+
+        JPanel conteudo = new JPanel(new BorderLayout());
+        conteudo.setBackground(FACE);
+        conteudo.add(informacoes, BorderLayout.NORTH);
+
+        painel.add(amostraCor, BorderLayout.NORTH);
+        painel.add(conteudo, BorderLayout.CENTER);
+        return painel;
+    }
+
+    private JLabel criarValorInfo() {
+        JLabel valor = new JLabel("-");
+        valor.setFont(new Font("Monospaced", Font.BOLD, 12));
+        return valor;
+    }
+
+    private JPanel criarBarraStatusTabela() {
+        statusTabela = new JLabel(" Clique na paleta ou digite um indice.");
+        statusTabela.setBorder(new BevelBorder(BevelBorder.LOWERED));
+
+        JPanel barra = new JPanel(new BorderLayout());
+        barra.setBackground(FACE);
+        barra.add(statusTabela, BorderLayout.CENTER);
+
+        JLabel participantes = new JLabel(
+                " Grupo: Adrielly Carla | Maria Eduarda | Mirelle Casimiro | Nidlan Hendell | Rui Fernando ");
+        participantes.setFont(new Font("SansSerif", Font.PLAIN, 10));
+        participantes.setBorder(new BevelBorder(BevelBorder.LOWERED));
+        barra.add(participantes, BorderLayout.SOUTH);
+        return barra;
+    }
+
+    // Mostra a cor de um indice: consulta a tabela (12 bits -> 24 bits)
+    private void selecionarIndiceCor(int indice) {
+        indiceCorAtual = indice;
+
+        int cor = tabelaCores.getCor(indice);
+        int r = tabelaCores.getVermelho(indice);
+        int g = tabelaCores.getVerde(indice);
+        int b = tabelaCores.getAzul(indice);
+
+        amostraCor.setBackground(new Color(cor));
+        valorCorHex.setText(Hexa.cor(cor));
+        valorIndiceHex.setText(Hexa.indice(indice));
+        valorIndiceDecimal.setText("" + indice);
+        valorIndiceBinario.setText(Hexa.binario(indice));
+        valorCanalR.setText("0x" + Hexa.canal(r) + " (" + r + ")");
+        valorCanalG.setText("0x" + Hexa.canal(g) + " (" + g + ")");
+        valorCanalB.setText("0x" + Hexa.canal(b) + " (" + b + ")");
+        valorNomeTabela.setText(tabelaCores.getNome());
+
+        campoIndiceCor.setText(Hexa.indice(indice));
+        statusTabela.setText(" Pixel " + Hexa.indice(indice) + " (12 bits)  ->  tabela["
+                + indice + "]  ->  " + Hexa.cor(cor) + " (24 bits)");
+        painelPaletaCores.repaint();
+    }
+
+    private void selecionarIndicePeloCampo() {
+        int indice = Hexa.lerIndice(campoIndiceCor.getText());
+
+        if (indice < 0 || indice >= TabelaCores.TAMANHO) {
+            JOptionPane.showMessageDialog(this, "Digite de 0 a 4095 (ou 0x000 a 0xFFF).",
+                    "Indice invalido", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        selecionarIndiceCor(indice);
+    }
+
+    // Troca a tabela; o frame buffer (os indices) continua o mesmo
+    private void trocarTabelaCores(int tipo) {
+        tabelaSelecionada = tipo;
+        if (tipo == 1) {
+            tabelaCores.preencherColorida();
+        } else if (tipo == 2) {
+            tabelaCores.preencherCinza();
+        } else {
+            tabelaCores.preencherFogo();
+        }
+        atualizarBotoesTabela();
+
+        imagemPaleta = controladorVideo.gerarImagem();
+        selecionarIndiceCor(indiceCorAtual);
     }
 
     private JPanel criarTelaPrincipal() {
@@ -278,6 +664,14 @@ public class Interface extends JFrame {
                 System.exit(0);
             }
         });
+        JMenuItem inicio = new JMenuItem("Voltar ao inicio");
+        inicio.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                layoutCards.show(painelCards, "inicial");
+            }
+        });
+        arquivo.add(inicio);
         arquivo.add(sair);
 
         JMenu editar = new JMenu("Editar");

@@ -24,6 +24,27 @@
                 <version>3.13.0</version>
             </plugin>
 
+            <!-- Inclui o código do Lab 1 - Extra (tabela de cores) no frontend -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <id>fontes-lab1-extra</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.basedir}/../Lab 1 - Extra/src/main/java</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
             <!-- Diz qual classe tem o main ao gerar o .jar -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
