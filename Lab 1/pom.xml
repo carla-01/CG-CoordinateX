@@ -5,60 +5,21 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.example</groupId>
+    <!-- Versão do Java, encoding e plugins vêm do pom.xml da raiz -->
+    <parent>
+        <groupId>org.example</groupId>
+        <artifactId>CG-CoordinateX</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <!-- Lab 1: transformações Mundo -> NDC -> Dispositivo -->
     <artifactId>lab1</artifactId>
-    <version>1.0-SNAPSHOT</version>
 
-    <properties>
-        <!-- JDK 24 (openjdk-24 (2) no IntelliJ) -->
-        <maven.compiler.release>24</maven.compiler.release>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
-
-    <build>
-        <plugins>
-            <!-- Compilador com suporte ao Java 24 -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
-            </plugin>
-
-            <!-- Inclui o código do Lab 1 - Extra (tabela de cores) no frontend -->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>build-helper-maven-plugin</artifactId>
-                <version>3.6.0</version>
-                <executions>
-                    <execution>
-                        <id>fontes-lab1-extra</id>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>add-source</goal>
-                        </goals>
-                        <configuration>
-                            <sources>
-                                <source>${project.basedir}/../Lab 1 - Extra/src/main/java</source>
-                            </sources>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <!-- Diz qual classe tem o main ao gerar o .jar -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.4.2</version>
-                <configuration>
-                    <archive>
-                        <manifest>
-                            <mainClass>app.Main</mainClass>
-                        </manifest>
-                    </archive>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
-
+    <dependencies>
+        <dependency>
+            <groupId>org.example</groupId>
+            <artifactId>cg-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
 </project>

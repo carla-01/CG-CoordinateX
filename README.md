@@ -9,20 +9,23 @@ Repositório dos laboratórios da disciplina de **Computação Gráfica**.
 |---|---|---|
 | **Lab 1** | Transformação de coordenadas: Mundo → NDC → Dispositivo (e o caminho inverso) | [`Lab 1/`](Lab%201/) |
 | **Lab 1 – Extra** | Tabela de cores (LUT) de 24 bits para pixels de 12 bits | [`Lab 1 - Extra/`](Lab%201%20-%20Extra/) |
+| **Lab 2** | Rasterização de retas (DDA, Ponto Médio/Bresenham) e circunferências (polinomial, trigonométrico, ponto médio) | [`Lab 2/`](Lab%202/) |
 
-Os dois labs também podem ser abertos por uma **interface gráfica única** (`frontend.Interface`), que tem uma tela inicial com um botão para cada lab.
+Todos os labs são abertos por uma **interface gráfica única** (`frontend.App`), com uma tela inicial que tem um botão para cada lab.
 
 ---
 
 ## Sumário
 
 1. [Pré-requisitos](#pré-requisitos)
-2. [Estrutura do repositório](#estrutura-do-repositório)
+2. [Arquitetura](#arquitetura)
 3. [Como rodar](#como-rodar)
-4. [Lab 1 – Transformação de coordenadas](#lab-1--transformação-de-coordenadas)
-5. [Lab 1 – Extra: Tabela de cores](#lab-1--extra-tabela-de-cores)
-6. [Interface gráfica (frontend)](#interface-gráfica-frontend)
-7. [Problemas comuns](#problemas-comuns)
+4. [Tela do usuário](#tela-do-usuário)
+5. [Lab 1 – Transformação de coordenadas](#lab-1--transformação-de-coordenadas)
+6. [Lab 1 – Extra: Tabela de cores](#lab-1--extra-tabela-de-cores)
+7. [Lab 2 – Retas e circunferências](#lab-2--retas-e-circunferências)
+8. [Como adicionar um lab novo](#como-adicionar-um-lab-novo)
+9. [Problemas comuns](#problemas-comuns)
 
 ---
 
@@ -30,7 +33,7 @@ Os dois labs também podem ser abertos por uma **interface gráfica única** (`f
 
 | Ferramenta | Versão | Observação |
 |---|---|---|
-| **JDK** | **24 ou superior** | Os `pom.xml` usam `maven.compiler.release = 24`. |
+| **JDK** | **24 ou superior** | O `pom.xml` da raiz usa `maven.compiler.release = 24`. |
 | **Maven** | 3.9+ | Opcional se você usar o IntelliJ. |
 | IDE (opcional) | IntelliJ IDEA | O projeto foi desenvolvido com o `openjdk-24`. |
 
@@ -47,106 +50,161 @@ Nenhuma biblioteca externa é usada: tudo é Java puro com **AWT/Swing**.
 
 ---
 
-## Estrutura do repositório
+## Arquitetura
+
+O projeto é um Maven **multi-módulo**. A regra principal: **os labs só têm os algoritmos; a interface fica toda no `frontend`.**
+
+```
+                 ┌──────────────────────────────┐
+                 │           frontend           │  interface gráfica (Swing)
+                 │  App, telas de cada lab,     │  único ponto de entrada
+                 │  componentes compartilhados  │
+                 └───┬──────────┬───────────┬───┘
+                     │          │           │
+              ┌──────▼──┐ ┌─────▼──────┐ ┌──▼──────┐
+              │  Lab 1  │ │Lab 1 Extra │ │  Lab 2  │   só algoritmos dos slides
+              └──────┬──┘ └────────────┘ └──┬──────┘   (sem Swing)
+                     │                      │
+                 ┌───▼──────────────────────▼───┐
+                 │             core             │  base comum: Ponto, Pixel,
+                 └──────────────────────────────┘  JanelaMundo, FrameBuffer
+```
 
 ```
 CG-CoordinateX/
-├── README.md
-├── LICENSE
-├── .gitignore
+├── pom.xml                                 # pai: lista os módulos, Java 24, plugins
 │
-├── Lab 1/                                  # Lab 1 + interface gráfica
-│   ├── pom.xml                             # inclui também o código do "Lab 1 - Extra"
-│   └── src/main/java/
-│       ├── app/
-│       │   ├── Main.java                   # ponto de entrada do Lab 1 (console + tela cheia)
-│       │   └── LeitorConsole.java          # leitura de números e do cenário no console
+├── core/                                   # base comum a todos os labs
+│   └── src/main/java/core/
 │       ├── modelo/
-│       │   ├── JanelaMundo.java            # janela do mundo (xmin, xmax, ymin, ymax)
 │       │   ├── Ponto.java                  # ponto real (mundo e NDC)
-│       │   └── Pixel.java                  # ponto inteiro (dispositivo)
-│       ├── transformacao/
-│       │   ├── Transformacao.java          # classe abstrata com os 4 procedimentos
-│       │   ├── TransformacaoNdc01.java     # Cenário I:  NDC em [0,1] x [0,1]
-│       │   └── TransformacaoNdc11.java     # Cenário II: NDC em [-1,1] x [-1,1]
-│       ├── dispositivo/
-│       │   ├── Dispositivo.java            # resolução do monitor + frame buffer
-│       │   ├── TelaDisplay.java            # janela em tela cheia
-│       │   ├── PainelTela.java             # desenha o frame buffer
-│       │   ├── OuvinteMouse.java           # clique -> caminho inverso
-│       │   └── OuvinteTeclado.java         # ESC fecha o programa
-│       └── frontend/
-│           └── Interface.java              # interface gráfica com os dois labs
+│       │   ├── Pixel.java                  # ponto inteiro (dispositivo)
+│       │   └── JanelaMundo.java            # janela do mundo (xmin, xmax, ymin, ymax)
+│       └── dispositivo/
+│           ├── Raster.java                 # interface: setPixel(x, y, cor)
+│           ├── FrameBuffer.java            # memória de imagem ndh x ndv
+│           ├── Monitor.java                # resolução real do monitor
+│           └── Cores.java                  # VERDE, VERMELHO, ... (0xRRGGBB)
 │
-└── Lab 1 - Extra/                          # Tabela de cores
-    ├── pom.xml
-    └── src/main/java/tabelacores/
-        ├── MainTabelaCores.java            # ponto de entrada do Lab Extra
-        ├── TabelaCores.java                # a LUT: 4096 posições x 24 bits
-        ├── FrameBufferIndexado.java        # frame buffer de índices de 12 bits
-        ├── ControladorVideo.java           # índice -> tabela -> cor na imagem
-        ├── Hexa.java                       # formatação hex/binário e leitura do índice
-        ├── TelaCores.java                  # monta a janela e liga os eventos
-        ├── PainelPaleta.java               # grade 64 x 64 com as 4096 cores
-        ├── PainelInspetor.java             # painel com os dados da cor selecionada
-        ├── OuvinteCliquePaleta.java        # clique na grade
-        ├── OuvinteCampoIndice.java         # Enter / botão "Ver cor"
-        ├── OuvinteBotaoTabela.java         # botões Colorida / Cinza / Fogo
-        └── Estilo.java                     # cores e fontes da interface
+├── Lab 1/                                  # transformações de coordenadas
+│   └── src/main/java/lab1/transformacao/
+│       ├── Transformacao.java              # classe abstrata com os 4 procedimentos
+│       ├── TransformacaoNdc01.java         # Cenário I:  NDC em [0,1] x [0,1]
+│       └── TransformacaoNdc11.java         # Cenário II: NDC em [-1,1] x [-1,1]
+│
+├── Lab 1 - Extra/                          # tabela de cores
+│   └── src/main/java/lab1extra/tabelacores/
+│       ├── TabelaCores.java                # a LUT: 4096 posições x 24 bits
+│       ├── FrameBufferIndexado.java        # frame buffer de índices de 12 bits
+│       ├── ControladorVideo.java           # índice -> tabela -> cor na imagem
+│       └── Hexa.java                       # formatação hex/binário e leitura do índice
+│
+├── Lab 2/                                  # rasterização de primitivas
+│   └── src/main/java/lab2/
+│       ├── reta/
+│       │   ├── AlgoritmoReta.java          # interface comum das retas
+│       │   ├── RetaDDA.java                # DDA (método do declive)
+│       │   └── RetaPontoMedio.java         # Ponto Médio / Bresenham + simetria de octantes
+│       └── circunferencia/
+│           ├── AlgoritmoCircunferencia.java       # base + simetria de 8 pontos
+│           ├── CircunferenciaPolinomial.java      # y = sqrt(r² - x²)
+│           ├── CircunferenciaTrigonometrica.java  # x = r cos θ, y = r sin θ
+│           └── CircunferenciaPontoMedio.java      # Ponto Médio / Bresenham
+│
+└── frontend/                               # interface gráfica
+    └── src/main/java/frontend/
+        ├── App.java                        # main: registra os labs
+        ├── JanelaPrincipal.java            # janela, tela inicial e troca de telas
+        ├── TelaLab.java                    # base de todas as telas (layout padrão)
+        ├── Navegacao.java                  # o que uma tela pode pedir à janela
+        ├── componentes/
+        │   ├── PainelRaster.java           # a "tela do usuário" (grade, zoom, mouse)
+        │   ├── Regua.java                  # réguas com as coordenadas do dispositivo
+        │   ├── TelaCheia.java              # mostra o frame buffer no monitor inteiro
+        │   ├── BarraTitulo.java            # barra azul com minimizar/maximizar/fechar
+        │   ├── BarraStatus.java            # mensagem + coordenadas do mouse + equipe
+        │   ├── Componentes.java            # fábrica de botões, campos, combos
+        │   └── Estilo.java                 # cores e fontes
+        └── labs/
+            ├── TelaLab1.java
+            ├── TelaLab1Extra.java
+            └── TelaLab2.java
 ```
 
-> O `pom.xml` do **Lab 1** usa o `build-helper-maven-plugin` para adicionar `../Lab 1 - Extra/src/main/java` como fonte. Por isso a `frontend.Interface` consegue usar as classes do pacote `tabelacores`, e compilar o **Lab 1** já compila os dois labs.
+**Por que assim?**
+
+- Os algoritmos ficam iguais aos dos slides, sem nenhum código de interface no meio, e podem ser testados sozinhos.
+- Os algoritmos de desenho recebem um `Raster` (só tem `setPixel`). Eles não sabem se estão desenhando no frame buffer, na tela cheia ou numa lista de pixels.
+- Toda tela de lab herda de `TelaLab` e usa os mesmos componentes, então todos os labs ficam com a mesma cara.
+- Um lab pode usar o código de outro (ex.: o `frontend` usa as transformações do Lab 1) declarando a dependência no `pom.xml`.
 
 ---
 
 ## Como rodar
 
-São três pontos de entrada:
-
-| O que abre | Projeto | Classe `main` |
-|---|---|---|
-| Lab 1 (console + tela cheia) | `Lab 1` | `app.Main` |
-| Interface gráfica com os dois labs | `Lab 1` | `frontend.Interface` |
-| Lab Extra sozinho | `Lab 1 - Extra` | `tabelacores.MainTabelaCores` |
-
 ### Opção A — Terminal (Maven)
-
-**1. Clone o repositório**
 
 ```bash
 git clone <url-do-repositorio>
 cd CG-CoordinateX
+
+# compila todos os módulos e gera um .jar com tudo dentro
+mvn package
+
+# abre a interface
+java -jar frontend/target/coordinatex.jar
 ```
 
-**2. Compile e rode o Lab 1** (também compila o código do Lab Extra)
-
-```bash
-cd "Lab 1"
-mvn compile
-
-# Lab 1 no console + tela cheia
-java -cp target/classes app.Main
-
-# ou: interface gráfica com os dois labs
-java -cp target/classes frontend.Interface
-```
-
-**3. Compile e rode o Lab Extra sozinho**
-
-```bash
-cd "Lab 1 - Extra"
-mvn compile
-java -cp target/classes tabelacores.MainTabelaCores
-```
-
-> No Windows (PowerShell/CMD) os comandos são os mesmos; `target/classes` também funciona com `\`.
+> No Windows (PowerShell/CMD) os comandos são os mesmos.
 
 ### Opção B — IntelliJ IDEA
 
-1. `File → Open…` e selecione a pasta **`Lab 1`** (ou **`Lab 1 - Extra`**). O IntelliJ reconhece o `pom.xml` como projeto Maven.
+1. `File → Open…` e selecione a **pasta raiz** `CG-CoordinateX` (o `pom.xml` da raiz). O IntelliJ importa todos os módulos.
 2. Em `File → Project Structure → Project`, escolha um **SDK 24+**.
-3. Abra a classe desejada (`app.Main`, `frontend.Interface` ou `tabelacores.MainTabelaCores`) e clique no ▶ ao lado do `main`.
-4. Para o `app.Main`, use o painel **Run** como console para digitar os valores.
+3. Abra `frontend/src/main/java/frontend/App.java` e clique no ▶ ao lado do `main`.
+
+---
+
+## Tela do usuário
+
+### Layout padrão (todos os labs)
+
+Toda tela de lab herda de `TelaLab` e segue o mesmo layout, inspirado na tela mostrada pelo professor:
+
+```
+┌──────────────────────────────────────────────────────┐
+│ Arquivo  Ajuda                                       │
+│ [barra de opções: zoom, eixos, limpar, tela cheia]   │
+├──────────────────────────────────────────────────────┤
+│                                                      │
+│              área de desenho (PainelRaster)          │
+│                                                      │
+├───────────────────────────────────┬──────────────────┤
+│ [Aba 1] [Aba 2] [Aba 3]           │ Log  [Limpar log]│
+│ campos da operação escolhida      │ ...              │
+├───────────────────────────────────┴──────────────────┤
+│ mensagem                              │ (x, y) mouse │
+└──────────────────────────────────────────────────────┘
+```
+
+Cada **operação** do lab vira uma **aba** (ex.: Lab 2 → Pixel | Reta | Circunferência). Os resultados e os pixels calculados vão para o **log**.
+
+### PainelRaster
+
+O `PainelRaster` é o componente que representa o **display do dispositivo** em todos os labs. Ele mostra um `FrameBuffer`:
+
+| Recurso | Como funciona |
+|---|---|
+| **Coordenadas no mouse** | Passando o mouse, a barra de status mostra o pixel `(dcx, dcy)` embaixo dele, e as réguas destacam a linha e a coluna em amarelo. |
+| **Réguas** | Em cima (`dcx`) e à esquerda (`dcy`), com os números do dispositivo. |
+| **Zoom** | `1x` = cada pixel do frame buffer é **um pixel do monitor**. A partir de `4x` cada pixel vira uma **célula da grade**, onde dá para ver a rasterização. |
+| **Clique** | Avisa a tela do lab qual pixel foi clicado (no Lab 2 liga/desliga pixels ou escolhe pontos). |
+| **Tela cheia** | Mostra o frame buffer no monitor inteiro, sem zoom. **ESC** volta. |
+| **Eixos** | Linhas azuis passando pelo pixel central `(ndh/2, ndv/2)`, só como referência visual: são desenhadas por cima e **não acendem pixels** no frame buffer. |
+
+> A origem `(0, 0)` fica no **canto superior esquerdo** e o y cresce **para baixo**, igual ao Java: `0 ≤ dcx ≤ ndh − 1` e `0 ≤ dcy ≤ ndv − 1`.
+>
+> O `App` desliga a escala do Windows (`sun.java2d.uiScale = 1`) para que, no zoom 1x, 1 pixel do Java seja 1 pixel real mesmo com o Windows em 125%/150%.
 
 ---
 
@@ -154,27 +212,27 @@ java -cp target/classes tabelacores.MainTabelaCores
 
 ### Objetivo
 
-Dado um ponto no **sistema de coordenadas do mundo** (definido pelo usuário), calcular a sua posição no **NDC** (coordenadas normalizadas do dispositivo) e depois no **dispositivo** (pixel do monitor), acender esse pixel em **verde** e permitir o **caminho inverso** com o clique do mouse.
+Dado um ponto no **sistema de coordenadas do mundo** (definido pelo usuário), calcular a sua posição no **NDC** (coordenadas normalizadas do dispositivo) e depois no **dispositivo** (pixel do monitor), acender esse pixel em **verde** e mostrar o **caminho inverso** com o mouse.
 
 ```
         SAÍDA:    Mundo --userToNdc--> NDC --ndcToDc--> Dispositivo
-        ENTRADA:  Mundo <--ndcToUser-- NDC <--inpToNdc-- Dispositivo (clique)
+        ENTRADA:  Mundo <--ndcToUser-- NDC <--inpToNdc-- Dispositivo (mouse)
 ```
 
 ### Os quatro procedimentos
 
-Estão declarados na classe abstrata `transformacao.Transformacao` e implementados em cada cenário:
+Estão declarados na classe abstrata `lab1.transformacao.Transformacao` e implementados em cada cenário:
 
 | Método | Faz |
 |---|---|
 | `userToNdc(Ponto)` | Mundo → NDC |
 | `ndcToUser(Ponto)` | NDC → Mundo |
 | `ndcToDc(Ponto)` | NDC → Dispositivo (pixel) |
-| `inpToNdc(Pixel)` | Entrada do dispositivo (clique) → NDC |
+| `inpToNdc(Pixel)` | Entrada do dispositivo (mouse) → NDC |
 
 ### Fórmulas
 
-`ndh` e `ndv` são a resolução real do monitor (lida em `Dispositivo` com `GraphicsDevice.getDisplayMode()`).
+`ndh` e `ndv` são a resolução real do monitor (lida em `core.dispositivo.Monitor`).
 
 **Cenário I — NDC em [0,1] × [0,1]** (`TransformacaoNdc01`)
 
@@ -194,46 +252,16 @@ Estão declarados na classe abstrata `transformacao.Transformacao` e implementad
 | NDC → DC | `dcx = round((ndcx + 1) / 2 · (ndh − 1))` |
 | DC → NDC | `ndcx = 2 · dcx / (ndh − 1) − 1` |
 
-> No dispositivo a origem `(0, 0)` fica no **canto superior esquerdo**, igual ao Java; por isso o pixel é gravado direto no frame buffer, sem inverter o eixo y.
+### Passo a passo na interface
 
-### Passo a passo da execução (`app.Main`)
+1. Preencha `xmin`, `xmax`, `ymin`, `ymax`, `ponto x` e `ponto y` (aceita `2,5` ou `2.5`).
+2. Na aba **Mundo → Dispositivo**, escolha o cenário: **NDC [0,1] x [0,1]** ou **NDC [-1,1] x [-1,1]**.
+3. Clique em **Transformar**: um frame buffer preto do tamanho do monitor recebe **um único pixel verde** (`0x00FF00`), e a tela rola até ele. A barra de status mostra `Mundo → NDC → Dispositivo`.
+4. **Passe o mouse** na tela: a barra de status mostra o caminho inverso `Dispositivo → NDC → Mundo` do pixel embaixo do mouse.
+5. **Clique** num pixel: a coordenada dele no mundo vira o novo ponto e é transformada de novo (ida e volta acende o mesmo pixel).
+6. **Tela cheia** mostra o frame buffer no monitor inteiro (ESC volta). **Limpar** apaga tudo. O **log** guarda todas as transformações da sessão, e a aba **Dispositivo → Mundo** mostra ao vivo o caminho inverso do pixel sob o mouse.
 
-1. **Escala do sistema desligada** — `sun.java2d.uiScale = 1`, para que 1 pixel do Java seja 1 pixel real mesmo com o Windows em 125%/150%.
-2. **Janela do mundo** — o programa pede `xmin`, `xmax`, `ymin`, `ymax`. Se `xmax ≤ xmin` ou `ymax ≤ ymin`, pede de novo.
-3. **Ponto no mundo** — pede `x` e `y`. O ponto precisa estar **dentro** da janela. Aceita vírgula ou ponto decimal (`2,5` ou `2.5`).
-4. **Cenário** — `1` para NDC [0,1] ou `2` para NDC [−1,1].
-5. **Transformações** — calcula NDC e pixel e mostra no console:
-   ```
-   === Resultado (NDC [0,1] x [0,1]) ===
-   Resolução:   1920 x 1080
-   Mundo:       (5.0, 5.0)
-   NDC:         (0.5, 0.5)
-   Dispositivo: (960, 540)
-   ```
-6. **Display** — acende **um único pixel verde** (`0x00FF00`) num frame buffer preto do tamanho da tela e abre uma janela em **tela cheia**.
-7. **Caminho inverso** — cada **clique** na tela imprime no console o pixel clicado, o NDC e a coordenada no mundo.
-8. **ESC** fecha o programa.
-
-#### Exemplo de entrada
-
-```
-=== Janela do mundo ===
-xmin: 0
-xmax: 10
-ymin: 0
-ymax: 10
-
-=== Ponto no mundo ===
-x: 5
-y: 5
-
-=== Cenário ===
-1 - NDC [0,1] x [0,1]
-2 - NDC [-1,1] x [-1,1]
-Escolha: 1
-```
-
-> Dica: o pixel aceso é um só, então procure com atenção um ponto verde bem pequeno na tela preta.
+> O zoom padrão é **1x**: o pixel aceso é um pixel real do monitor (item 4 do enunciado). Os zooms maiores só ajudam a achar o pixel.
 
 ---
 
@@ -269,8 +297,6 @@ Implementar uma **tabela de cores (Look-Up Table)** com **24 bits de profundidad
 
 ### Memória (imagem 512 × 512)
 
-O `MainTabelaCores` imprime no console a comparação:
-
 | Item | Cálculo | Bytes |
 |---|---|---|
 | Frame buffer com 12 bits/pixel | 512 · 512 · 12 / 8 | 393.216 |
@@ -278,35 +304,84 @@ O `MainTabelaCores` imprime no console a comparação:
 | **Total com tabela** | | **405.504** |
 | Sem tabela (24 bits/pixel) | 512 · 512 · 24 / 8 | 786.432 |
 
-### Passo a passo da execução (`tabelacores.MainTabelaCores`)
+### Passo a passo na interface
 
-1. O console mostra as informações da tabela e o cálculo de memória acima.
-2. Abre a janela **"Tabela de Cores"** com:
-    - à esquerda, a **paleta 64 × 64** com as 4096 cores (blocos de 8 × 8 px);
-    - à direita, o **inspetor** da cor selecionada.
-3. Para escolher uma cor:
-    - **clique** em um bloco da paleta, **ou**
-    - digite um índice no campo — em decimal (`384`) ou hexadecimal (`0x180`) — e aperte **Enter** ou **Ver cor**. Fora de `0…4095` aparece uma mensagem de erro.
-4. O inspetor mostra: amostra da cor, `#RRGGBB`, índice em hex/decimal, os **12 bits** do índice (`0001 1000 0000`), os canais R, G e B e o nome da tabela.
-5. Os botões **Colorida**, **Cinza** e **Fogo** trocam a tabela; a paleta é redesenhada e o inspetor atualiza a cor do mesmo índice.
+1. À esquerda, a **paleta 64 × 64** com as 4096 cores; à direita, os dados da cor selecionada.
+2. Para escolher uma cor: **clique** em um bloco da paleta, **ou** digite um índice — em decimal (`384`) ou hexadecimal (`0x180`) — e aperte **Enter** ou **Ver cor**.
+3. Os dados mostram: amostra da cor, `#RRGGBB`, índice em hex/decimal, os **12 bits** do índice (`0001 1000 0000`), os canais R, G e B e o nome da tabela.
+4. Os botões **Colorida**, **Cinza** e **Fogo** trocam a tabela; a paleta é redesenhada com o mesmo frame buffer.
 
 ---
 
-## Interface gráfica (frontend)
+## Lab 2 – Retas e circunferências
 
-`frontend.Interface` (dentro de `Lab 1/`) junta os dois labs numa janela única, com visual inspirado no Windows clássico.
+### Objetivo
 
-1. **Tela inicial** — título *CoordinateX*, professor, equipe e dois botões:
-    - **Lab 1 - Coordenadas**
-    - **Lab 1 Extra - Tabela de Cores**
-2. **Tela do Lab 1**
-    - Preencha `xmin`, `xmax`, `ymin`, `ymax`, `ponto x` e `ponto y`.
-    - Escolha o cenário na barra lateral: **NDC [0,1]** ou **NDC [-1,1]**.
-    - Clique em **Transformar**: o frame buffer (do tamanho do monitor) é desenhado no canvas com o pixel verde, e a barra de status mostra `Mundo → NDC → Dispositivo`. Use as barras de rolagem para chegar ao pixel.
-    - **Limpar** volta o canvas ao fundo quadriculado.
-    - Menu **Ver Histórico** lista todas as transformações feitas na sessão.
-3. **Tela do Lab Extra** — mesma lógica do `MainTabelaCores` (paleta 64 × 64 com blocos de 6 × 6, campo de índice, botões Colorida/Cinza/Fogo e painel com os dados da cor), reaproveitando as classes do pacote `tabelacores`.
-4. Pelo menu é possível **voltar ao início** e **sair**. A janela não tem borda do sistema: arraste pela barra de título e use os botões dela para minimizar, maximizar ou fechar.
+Implementar os algoritmos de desenho de reta da aula 3 (**DDA** e **Ponto Médio/Bresenham**, com os demais octantes por **simetria**) e os algoritmos de desenho da circunferência (**polinomial**, **trigonométrico** e **ponto médio**).
+
+Todos trabalham em **coordenadas do dispositivo** (inteiras) e desenham chamando `raster.setPixel(x, y, cor)`.
+
+### Retas
+
+| Algoritmo | Classe | Ideia |
+|---|---|---|
+| **DDA** | `RetaDDA` | `steps = max(|dx|, |dy|)`; a cada passo `x += dx/steps`, `y += dy/steps` e `setPixel(round(x), round(y))`. Funciona em qualquer direção. |
+| **Ponto Médio (Bresenham)** | `RetaPontoMedio` | Só inteiros. `d = 2dy − dx`; se `d ≤ 0` escolhe **E** (`d += 2dy`), senão **NE** (`d += 2(dy − dx)`). |
+
+**Simetria de octantes (Bresenham).** O algoritmo do slide só vale no 1º octante (`0 ≤ m ≤ 1`, x crescendo). Para os outros:
+
+1. `descobrirOctante(dx, dy)` diz em qual dos 8 octantes a reta está;
+2. `paraPrimeiroOctante` leva P1 e P2 para o 1º octante (reflexões no eixo x, no eixo y e na reta y = x);
+3. o algoritmo roda no 1º octante;
+4. `doPrimeiroOctante` leva cada pixel calculado de volta ao octante original antes do `setPixel`.
+
+| Octante | Condição | Para o 1º octante |
+|---|---|---|
+| 1 | `dx ≥ dy ≥ 0` | `(x, y)` |
+| 2 | `dy > dx ≥ 0` | `(y, x)` |
+| 3 | `dy > −dx > 0` | `(y, −x)` |
+| 4 | `−dx ≥ dy ≥ 0` | `(−x, y)` |
+| 5 | `dx ≤ dy < 0` | `(−x, −y)` |
+| 6 | `dy < dx < 0` | `(−y, −x)` |
+| 7 | `dy < −dx ≤ 0` | `(−y, x)` |
+| 8 | `dx ≥ −dy > 0` | `(x, −y)` |
+
+> Como o y do dispositivo cresce para baixo, o 1º octante aparece na tela "para a direita e para baixo".
+
+**Conferindo com o slide:** a reta de `(20,10)` a `(30,18)` com o Ponto Médio acende exatamente `(20,10) (21,11) (22,12) (23,12) (24,13) (25,14) (26,15) (27,16) (28,16) (29,17) (30,18)`, igual à tabela da aula 3. O DDA de `(6,9)` a `(11,12)` acende `(6,9) (7,10) (8,10) (9,11) (10,11) (11,12)`.
+
+### Circunferências
+
+Todos calculam só 1/8 da circunferência (de 90° a 45°) e usam a **simetria de 8 pontos** (`pontosCirculo`): `(x, y)` gera `(±x, ±y)` e `(±y, ±x)` em volta do centro.
+
+| Algoritmo | Classe | Ideia |
+|---|---|---|
+| **Polinomial** | `CircunferenciaPolinomial` | `x` de 0 até `r/√2`, `y = round(sqrt(r² − x²))`. |
+| **Trigonométrico** | `CircunferenciaTrigonometrica` | `θ` de 0 até `π/4` com passo `1/r`; `x = round(r cos θ)`, `y = round(r sin θ)`. |
+| **Ponto Médio** | `CircunferenciaPontoMedio` | Começa em `(0, r)`, `d = 1 − r`; se `d < 0` escolhe **E** (`d += 2x + 3`), senão **SE** (`d += 2(x − y) + 5`, `y−−`). |
+
+### Passo a passo na interface
+
+1. Defina o dispositivo: `ndh` × `ndv` (padrão 64 × 48) e clique em **Aplicar**. Escolha o **zoom** (padrão 10x) e a **cor**.
+2. Escolha a ferramenta pela aba (o fundo do dispositivo é branco e os eixos de referência ficam ligados):
+   - **Pixel** — clique numa célula para **ligar/desligar** um pixel.
+   - **Reta** — escolha o algoritmo; clique em **P1** e depois em **P2**, ou digite `x1 y1 x2 y2` e clique em **Desenhar**. Enquanto escolhe o P2, a barra de status mostra `dx`, `dy`, o declive `m` e o **octante**.
+   - **Circunferência** — escolha o algoritmo; clique no **centro** e depois num ponto da borda (define o raio), ou digite `xc yc raio` e clique em **Desenhar**.
+3. O **log** mostra cada `setPixel` de cada desenho, na ordem em que o algoritmo chamou. Serve para conferir com as tabelas dos slides.
+4. Use cores diferentes para **comparar algoritmos** desenhando um por cima do outro.
+5. **Limpar** apaga a tela; **Tela cheia** mostra o frame buffer no monitor sem zoom (ESC volta).
+
+---
+
+## Como adicionar um lab novo
+
+Exemplo para o **Lab 3**:
+
+1. **Algoritmos** — crie a pasta `Lab 3/` com `src/main/java/lab3/...` e um `pom.xml` igual ao do `Lab 2` (troque o `artifactId` para `lab3`). Use só o `core` (`Raster`, `FrameBuffer`, `Pixel`...), sem Swing.
+2. **Módulo** — no `pom.xml` da raiz, adicione `<module>Lab 3</module>` (antes do `frontend`).
+3. **Dependência** — no `frontend/pom.xml`, adicione a dependência `lab3`.
+4. **Tela** — crie `frontend/labs/TelaLab3.java` estendendo `TelaLab`: monte a barra de opções (`Componentes.linhaEntrada`), a área de desenho (normalmente um `PainelRaster`) e as abas (`criarAbas()`, uma aba por operação, com o conteúdo feito por `Componentes.painelAba`), e chame `montar(...)` no fim do construtor. Use `log(...)` para escrever no log.
+5. **Registro** — no `frontend/App.java`, adicione `janela.adicionarLab(new TelaLab3(janela));`. O botão aparece sozinho na tela inicial.
 
 ---
 
@@ -315,9 +390,9 @@ O `MainTabelaCores` imprime no console a comparação:
 | Sintoma | Causa / solução |
 |---|---|
 | `error: release version 24 not supported` | O Maven está usando um JDK antigo. Aponte o `JAVA_HOME` para um JDK 24+. |
-| `UnsupportedClassVersionError` ao rodar `java -cp …` | O `java` do PATH é mais antigo que o JDK que compilou. Use o `java` do JDK 24+. |
-| `package tabelacores does not exist` ao compilar o `Lab 1` na IDE | Recarregue o projeto Maven (o `build-helper-maven-plugin` adiciona a pasta do Lab Extra como fonte), ou compile com `mvn compile`. |
-| Não encontro o pixel verde | É um único pixel. Use valores fáceis (ex.: janela 0–10 e ponto 5,5 → centro da tela). |
+| `UnsupportedClassVersionError` ao rodar `java -jar …` | O `java` do PATH é mais antigo que o JDK que compilou. Use o `java` do JDK 24+. |
+| `package lab1.transformacao does not exist` (ou outro lab) na IDE | Abra a **pasta raiz** no IntelliJ (não a pasta de um lab) e recarregue o projeto Maven. |
+| Não encontro o pixel verde (Lab 1) | A tela rola até ele depois do Transformar. Com zoom ≥ 4x ele ganha um contorno magenta. |
 | Tela cheia não fecha | Clique na janela para dar foco e aperte **ESC**. |
 
 ---
