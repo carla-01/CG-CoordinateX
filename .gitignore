@@ -32,3 +32,8 @@ target/
 *.iws
 *.ipr
 out/
+
+# Configurações locais do VS Code (caminho do JDK de cada máquina).
+# O launch.json é comum a todos e pode ser versionado.
+.vscode/*
+!.vscode/launch.json
