@@ -1,7 +1,7 @@
 package modelo;
 
 // Um ponto do DISPOSITIVO: coordenadas inteiras.
-// Aqui o y cresce para CIMA, como nas fórmulas do slide.
+// Origem (0, 0) no canto superior esquerdo, y cresce para BAIXO.
 public class Pixel {
 
     private int x;

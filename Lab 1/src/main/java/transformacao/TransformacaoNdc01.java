@@ -13,6 +13,7 @@ public class TransformacaoNdc01 extends Transformacao {
         super(janela, dispositivo);
     }
 
+    // mundo -> NDC
     // ndcx = (x - xmin) / (xmax - xmin)
     public Ponto userToNdc(Ponto mundo) {
         double ndcx = (mundo.getX() - janela.getXmin()) / janela.getLargura();
@@ -20,6 +21,7 @@ public class TransformacaoNdc01 extends Transformacao {
         return new Ponto(ndcx, ndcy);
     }
 
+    // NDC -> mundo
     // x = xmin + ndcx * (xmax - xmin)
     public Ponto ndcToUser(Ponto ndc) {
         double x = janela.getXmin() + ndc.getX() * janela.getLargura();
@@ -27,6 +29,7 @@ public class TransformacaoNdc01 extends Transformacao {
         return new Ponto(x, y);
     }
 
+    // NDC -> dispositivo
     // dcx = round(ndcx * (ndh - 1))
     public Pixel ndcToDc(Ponto ndc) {
         int ndh = dispositivo.getNdh();
@@ -37,6 +40,7 @@ public class TransformacaoNdc01 extends Transformacao {
         return new Pixel(dcx, dcy);
     }
 
+    // entrada do dispositivo -> NDC
     // ndcx = dcx / (ndh - 1)
     public Ponto inpToNdc(Pixel entrada) {
         double ndh = dispositivo.getNdh();
@@ -46,6 +50,7 @@ public class TransformacaoNdc01 extends Transformacao {
         double ndcy = entrada.getY() / (ndv - 1);
         return new Ponto(ndcx, ndcy);
     }
+
 
     public String getNome() {
         return "NDC [0,1] x [0,1]";

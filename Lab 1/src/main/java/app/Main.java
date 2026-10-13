@@ -14,7 +14,6 @@ import transformacao.TransformacaoNdc11;
 public class Main {
 
     public static void main(String[] args) {
-        // Precisa vir ANTES de qualquer coisa gráfica.
         // Evita que a escala do sistema (125%, 150%...) transforme
         // 1 pixel do Java em um grupo de pixels reais.
         System.setProperty("sun.java2d.uiScale", "1");
