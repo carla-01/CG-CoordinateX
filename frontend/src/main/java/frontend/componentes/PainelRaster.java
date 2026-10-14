@@ -43,6 +43,7 @@ public class PainelRaster extends JPanel {
     private Pixel sobMouse;
     private Pixel marcador;
     private boolean mostrarEixos;
+    private boolean mostrarGrade = true;
     private Ouvinte ouvinte;
 
     private Regua reguaHorizontal;
@@ -134,6 +135,12 @@ public class PainelRaster extends JPanel {
 
     public void setMostrarEixos(boolean mostrarEixos) {
         this.mostrarEixos = mostrarEixos;
+        repaint();
+    }
+
+    // false: tela limpa como o display, sem a grade mesmo com zoom
+    public void setMostrarGrade(boolean mostrarGrade) {
+        this.mostrarGrade = mostrarGrade;
         repaint();
     }
 
@@ -246,7 +253,7 @@ public class PainelRaster extends JPanel {
         // Ampliação por "vizinho mais próximo": cada pixel vira um quadrado zoom x zoom
         g.drawImage(frameBuffer.getImagem(), 0, 0, largura, altura, null);
 
-        if (zoom >= ZOOM_GRADE) {
+        if (mostrarGrade && zoom >= ZOOM_GRADE) {
             desenharGrade(g, largura, altura);
         }
         if (mostrarEixos) {

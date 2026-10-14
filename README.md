@@ -356,20 +356,19 @@ Todos calculam só 1/8 da circunferência (de 90° a 45°) e usam a **simetria d
 
 | Algoritmo | Classe | Ideia |
 |---|---|---|
-| **Polinomial** | `CircunferenciaPolinomial` | `x` de 0 até `r/√2`, `y = round(sqrt(r² − x²))`. |
-| **Trigonométrico** | `CircunferenciaTrigonometrica` | `θ` de 0 até `π/4` com passo `1/r`; `x = round(r cos θ)`, `y = round(r sin θ)`. |
+| **Polinomial** | `CircunferenciaPolinomial` | Igual ao slide: `x = 0`, `xend = r/√2`; enquanto `x <= xend`: `y = sqrt(r² − x²)`, `Círculo_ponto(round x, round y)`, `x += 1`. |
+| **Trigonométrico** | `CircunferenciaTrigonometrica` | Igual ao slide: `θ = 0`, `θend = π/4`; enquanto `θ <= θend`: `x = r cos θ`, `y = r sen θ`, `Círculo_ponto(round x, round y)`, `θ += i`. O passo `i` divide `π/4` em partes iguais de no máximo `1/r` (≈ 1 pixel), para o último ponto cair em 45°. |
 | **Ponto Médio** | `CircunferenciaPontoMedio` | Começa em `(0, r)`, `d = 1 − r`; se `d < 0` escolhe **E** (`d += 2x + 3`), senão **SE** (`d += 2(x − y) + 5`, `y−−`). |
 
 ### Passo a passo na interface
 
-1. Defina o dispositivo: `ndh` × `ndv` (padrão 64 × 48) e clique em **Aplicar**. Escolha o **zoom** (padrão 10x) e a **cor**.
-2. Escolha a ferramenta pela aba (o fundo do dispositivo é branco e os eixos de referência ficam ligados):
+1. Defina o dispositivo: `ndh` × `ndv` (padrão 64 × 48) e clique em **Aplicar**. Escolha o **zoom** (padrão 8x).
+2. Escolha a ferramenta pela aba. A tela imita o display: fundo preto **totalmente limpo** (sem grade e sem eixos) e os pixels são acesos sempre na cor **`00FF00`**:
    - **Pixel** — clique numa célula para **ligar/desligar** um pixel.
    - **Reta** — escolha o algoritmo; clique em **P1** e depois em **P2**, ou digite `x1 y1 x2 y2` e clique em **Desenhar**. Enquanto escolhe o P2, a barra de status mostra `dx`, `dy`, o declive `m` e o **octante**.
    - **Circunferência** — escolha o algoritmo; clique no **centro** e depois num ponto da borda (define o raio), ou digite `xc yc raio` e clique em **Desenhar**.
 3. O **log** mostra cada `setPixel` de cada desenho, na ordem em que o algoritmo chamou. Serve para conferir com as tabelas dos slides.
-4. Use cores diferentes para **comparar algoritmos** desenhando um por cima do outro.
-5. **Limpar** apaga a tela; **Tela cheia** mostra o frame buffer no monitor sem zoom (ESC volta).
+4. **Limpar** apaga a tela; **Tela cheia** mostra o frame buffer no monitor sem zoom (ESC volta).
 
 ---
 

@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Locale;
 
 import javax.swing.JButton;
-import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
@@ -36,8 +35,10 @@ import lab2.reta.RetaPontoMedio;
 // Lab 2: rasterização de retas e circunferências.
 //
 // A tela do usuário é um dispositivo de ndh x ndv pixels (definido pelo
-// usuário) mostrado com zoom, em grade. As coordenadas são do dispositivo:
-// origem (0, 0) no canto superior esquerdo, y crescendo para baixo.
+// usuário) mostrado com zoom. Como no display, a tela é limpa: fundo preto,
+// sem grade e sem eixos, e os pixels são acesos na cor 00FF00.
+// As coordenadas são do dispositivo: origem (0, 0) no canto superior
+// esquerdo, y crescendo para baixo.
 //
 // Cada aba é uma ferramenta:
 //   Pixel          - clique liga/desliga um pixel
@@ -50,9 +51,8 @@ public class TelaLab2 extends TelaLab {
     private static final int CIRCUNFERENCIA = 2;
 
     private static final int[] ZOOMS = { 1, 2, 4, 6, 8, 10, 12, 16, 20, 24, 32 };
-    private static final String[] NOMES_CORES = { "Verde", "Preto", "Vermelho", "Azul", "Magenta", "Ciano" };
-    private static final int[] CORES = { Cores.VERDE, Cores.PRETO, Cores.VERMELHO, Cores.AZUL, Cores.MAGENTA,
-            Cores.CIANO };
+    private static final int COR_FUNDO = Cores.PRETO;
+    private static final int COR_PIXEL = Cores.VERDE; // 00FF00
 
     private final AlgoritmoReta[] algoritmosReta = { new RetaDDA(), new RetaPontoMedio() };
     private final AlgoritmoCircunferencia[] algoritmosCircunferencia = { new CircunferenciaPolinomial(),
@@ -63,7 +63,6 @@ public class TelaLab2 extends TelaLab {
     private JTextField campoNdh;
     private JTextField campoNdv;
     private JComboBox<String> comboZoom;
-    private JComboBox<String> comboCor;
 
     private JComboBox<String> comboReta;
     private JTextField campoX1;
@@ -90,7 +89,8 @@ public class TelaLab2 extends TelaLab {
                 "Escolha a aba e clique na grade, ou digite os pontos e clique em Desenhar.");
 
         painel = new PainelRaster();
-        painel.setMostrarEixos(true);
+        painel.setMostrarGrade(false);
+        painel.setMostrarEixos(false);
         painel.setOuvinte(new PainelRaster.Ouvinte() {
             public void mouseSobre(Pixel pixel) {
                 mostrarMouse(pixel);
@@ -140,16 +140,6 @@ public class TelaLab2 extends TelaLab {
             }
         });
 
-        comboCor = new JComboBox<String>(NOMES_CORES);
-
-        final JCheckBox eixos = Componentes.caixaMarcar("Eixos", true);
-        eixos.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                painel.setMostrarEixos(eixos.isSelected());
-            }
-        });
-
         JButton limpar = Componentes.botao("Limpar");
         limpar.addActionListener(new ActionListener() {
             @Override
@@ -178,9 +168,6 @@ public class TelaLab2 extends TelaLab {
         barra.add(aplicar);
         barra.add(Componentes.rotulo("   zoom"));
         barra.add(comboZoom);
-        barra.add(Componentes.rotulo("   cor"));
-        barra.add(comboCor);
-        barra.add(eixos);
         barra.add(limpar);
         barra.add(telaCheia);
         return barra;
@@ -292,9 +279,9 @@ public class TelaLab2 extends TelaLab {
         criarFrameBuffer(ndh, ndv);
     }
 
-    // Dispositivo com fundo branco, como a tela do professor
+    // Dispositivo com o fundo totalmente limpo, como o display
     private void criarFrameBuffer(int ndh, int ndv) {
-        frameBuffer = new FrameBuffer(ndh, ndv, Cores.BRANCO);
+        frameBuffer = new FrameBuffer(ndh, ndv, COR_FUNDO);
         painel.setFrameBuffer(frameBuffer);
         cancelarPrimeiroClique();
 
@@ -302,10 +289,6 @@ public class TelaLab2 extends TelaLab {
                 + "  e  0 <= y <= " + (ndv - 1);
         log("--- " + texto);
         status.setMensagem(texto);
-    }
-
-    private int corEscolhida() {
-        return CORES[comboCor.getSelectedIndex()];
     }
 
     // ===== Mouse =====
@@ -402,7 +385,7 @@ public class TelaLab2 extends TelaLab {
             frameBuffer.setPixel(pixel.getX(), pixel.getY(), frameBuffer.getCorFundo());
             acao = "desligado";
         } else {
-            frameBuffer.setPixel(pixel.getX(), pixel.getY(), corEscolhida());
+            frameBuffer.setPixel(pixel.getX(), pixel.getY(), COR_PIXEL);
             acao = "ligado";
         }
         log("setPixel" + pixel + " " + acao);
@@ -438,7 +421,7 @@ public class TelaLab2 extends TelaLab {
         AlgoritmoReta algoritmo = algoritmosReta[comboReta.getSelectedIndex()];
         List<Pixel> pixels = new ArrayList<Pixel>();
 
-        algoritmo.desenhar(registrar(pixels), x1, y1, x2, y2, corEscolhida());
+        algoritmo.desenhar(registrar(pixels), x1, y1, x2, y2, COR_PIXEL);
 
         terminarDesenho("Reta " + algoritmo.getNome() + ": (" + x1 + ", " + y1 + ") -> (" + x2 + ", " + y2
                 + "), octante " + RetaPontoMedio.descobrirOctante(x2 - x1, y2 - y1), pixels);
@@ -448,7 +431,7 @@ public class TelaLab2 extends TelaLab {
         AlgoritmoCircunferencia algoritmo = algoritmosCircunferencia[comboCircunferencia.getSelectedIndex()];
         List<Pixel> pixels = new ArrayList<Pixel>();
 
-        algoritmo.desenhar(registrar(pixels), xc, yc, raio, corEscolhida());
+        algoritmo.desenhar(registrar(pixels), xc, yc, raio, COR_PIXEL);
 
         terminarDesenho("Circunferência " + algoritmo.getNome() + ": centro (" + xc + ", " + yc + "), raio "
                 + raio, pixels);
