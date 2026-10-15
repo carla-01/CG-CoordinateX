@@ -21,7 +21,9 @@ import core.dispositivo.Raster;
 //   3: dy > -dx > 0        7: dy < -dx <= 0
 //   4: -dx >= dy >= 0      8: dx >= -dy > 0
 // Obs.: no dispositivo o y cresce para baixo, então o 1º octante
-// aparece na tela "para a direita e para baixo".
+// aparece na tela "para a direita e para baixo". No plano cartesiano
+// (core.dispositivo.PlanoCartesiano, y para cima) os octantes ficam
+// onde a matemática diz: o 1º "para a direita e para cima".
 public class RetaPontoMedio implements AlgoritmoReta {
 
     public String getNome() {
@@ -79,6 +81,13 @@ public class RetaPontoMedio implements AlgoritmoReta {
         if (dx < 0 && dy >= 0) return 3;
         if (dx < 0 && dy < 0) return 6;
         return 7;
+    }
+
+    // true se o deslocamento (dx, dy) está dentro do octante, contando as
+    // bordas (eixos e diagonais): levado ao 1º octante, fica dx >= dy >= 0
+    public static boolean estaNoOctante(int octante, int dx, int dy) {
+        int[] p = paraPrimeiroOctante(octante, dx, dy);
+        return p[0] >= p[1] && p[1] >= 0;
     }
 
     // Reflexões que levam um ponto do octante dado para o 1º octante

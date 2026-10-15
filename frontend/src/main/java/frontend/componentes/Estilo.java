@@ -17,6 +17,8 @@ public class Estilo {
     public static final Color GRADE_FUNDO_ESCURO = new Color(0x3A3A3A);
     public static final Color GRADE_FUNDO_CLARO = new Color(0xDDDDDD);
     public static final Color EIXOS = new Color(0x3060C0);
+    public static final Color OCTANTES = new Color(0x806020);
+    public static final Color OCTANTES_TEXTO = new Color(0xFFB040);
     public static final Color MOUSE = new Color(0xFF6600);
     public static final Color MARCADOR = new Color(0xFF00FF);
     public static final Color REGUA_MOUSE = new Color(0xFFFF00);

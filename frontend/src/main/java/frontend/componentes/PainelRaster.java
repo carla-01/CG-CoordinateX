@@ -2,8 +2,11 @@ package frontend.componentes;
 
 import java.awt.Color;
 import java.awt.Cursor;
+import java.awt.BasicStroke;
 import java.awt.Dimension;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.MouseAdapter;
@@ -15,6 +18,7 @@ import javax.swing.JViewport;
 import javax.swing.border.BevelBorder;
 
 import core.dispositivo.FrameBuffer;
+import core.dispositivo.PlanoCartesiano;
 import core.modelo.Pixel;
 
 // A "tela do usuário": mostra um frame buffer como o display do dispositivo.
@@ -25,6 +29,9 @@ import core.modelo.Pixel;
 // - clicando, avisa qual pixel foi clicado.
 //
 // A origem (0, 0) fica no canto superior esquerdo e o y cresce para baixo.
+// Com o plano cartesiano ligado, aparecem os eixos x e y passando pelo
+// pixel central, as diagonais y = x e y = -x e o número de cada octante,
+// e as réguas passam a mostrar as coordenadas do plano.
 public class PainelRaster extends JPanel {
 
     // A partir desse zoom a grade e os contornos são desenhados
@@ -43,6 +50,7 @@ public class PainelRaster extends JPanel {
     private Pixel sobMouse;
     private Pixel marcador;
     private boolean mostrarEixos;
+    private boolean planoCartesiano;
     private boolean mostrarGrade = true;
     private Ouvinte ouvinte;
 
@@ -136,6 +144,20 @@ public class PainelRaster extends JPanel {
     public void setMostrarEixos(boolean mostrarEixos) {
         this.mostrarEixos = mostrarEixos;
         repaint();
+    }
+
+    // Eixos x e y com rótulos, diagonais e octantes; réguas no plano
+    public void setPlanoCartesiano(boolean planoCartesiano) {
+        this.planoCartesiano = planoCartesiano;
+        atualizar();
+    }
+
+    // null quando o plano cartesiano está desligado
+    public PlanoCartesiano getPlano() {
+        if (planoCartesiano == false || frameBuffer == null) {
+            return null;
+        }
+        return new PlanoCartesiano(frameBuffer.getNdh(), frameBuffer.getNdv());
     }
 
     // false: tela limpa como o display, sem a grade mesmo com zoom
@@ -256,7 +278,9 @@ public class PainelRaster extends JPanel {
         if (mostrarGrade && zoom >= ZOOM_GRADE) {
             desenharGrade(g, largura, altura);
         }
-        if (mostrarEixos) {
+        if (planoCartesiano) {
+            desenharPlano(g, largura, altura);
+        } else if (mostrarEixos) {
             desenharEixos(g, largura, altura);
         }
         if (zoom >= ZOOM_GRADE) {
@@ -273,6 +297,53 @@ public class PainelRaster extends JPanel {
         g.setColor(Estilo.EIXOS);
         g.drawLine(x, 0, x, altura - 1);
         g.drawLine(0, y, largura - 1, y);
+    }
+
+    // Plano cartesiano: eixos com rótulos, diagonais tracejadas (limites
+    // entre os octantes) e o número de cada octante. Também é só desenho.
+    private void desenharPlano(Graphics g, int largura, int altura) {
+        int x = (frameBuffer.getNdh() / 2) * zoom + zoom / 2;
+        int y = (frameBuffer.getNdv() / 2) * zoom + zoom / 2;
+        int tamanho = Math.max(largura, altura);
+
+        Graphics2D g2 = (Graphics2D) g.create();
+        g2.setColor(Estilo.OCTANTES);
+        g2.setStroke(new BasicStroke(1, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10,
+                new float[] { 4, 4 }, 0));
+        g2.drawLine(x - tamanho, y + tamanho, x + tamanho, y - tamanho); // y = x
+        g2.drawLine(x - tamanho, y - tamanho, x + tamanho, y + tamanho); // y = -x
+
+        // Número de cada octante no meio do seu ângulo (22,5° + k·45°),
+        // perto da borda da tela para não ficar em cima do desenho
+        g2.setColor(Estilo.OCTANTES_TEXTO);
+        g2.setFont(Estilo.VALOR);
+        FontMetrics medidas = g2.getFontMetrics();
+        int margem = 14;
+        for (int octante = 1; octante <= 8; octante++) {
+            double angulo = Math.toRadians(22.5 + 45 * (octante - 1));
+            double cos = Math.cos(angulo);
+            double sen = Math.sin(angulo);
+            double raio = Math.min((largura / 2.0 - margem) / Math.abs(cos), (altura / 2.0 - margem) / Math.abs(sen));
+            String texto = "" + octante;
+            int tx = (int) Math.round(x + raio * cos) - medidas.stringWidth(texto) / 2;
+            int ty = (int) Math.round(y - raio * sen) + medidas.getAscent() / 2;
+            g2.drawString(texto, tx, ty);
+        }
+        g2.dispose();
+
+        desenharEixos(g, largura, altura);
+
+        // Setas e rótulos nas pontas positivas dos eixos
+        g.setColor(Estilo.EIXOS);
+        g.setFont(Estilo.VALOR);
+        int[] setaXx = { largura - 1, largura - 8, largura - 8 };
+        int[] setaXy = { y, y - 4, y + 4 };
+        g.fillPolygon(setaXx, setaXy, 3);
+        g.drawString("x", largura - 12, y - 6);
+        int[] setaYx = { x, x - 4, x + 4 };
+        int[] setaYy = { 0, 7, 7 };
+        g.fillPolygon(setaYx, setaYy, 3);
+        g.drawString("y", x + 6, 12);
     }
 
     // Só desenha as linhas que aparecem na área visível (clip)

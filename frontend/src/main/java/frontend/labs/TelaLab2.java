@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Locale;
 
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
@@ -17,6 +18,7 @@ import javax.swing.event.ChangeListener;
 
 import core.dispositivo.Cores;
 import core.dispositivo.FrameBuffer;
+import core.dispositivo.PlanoCartesiano;
 import core.dispositivo.Raster;
 import core.modelo.Pixel;
 import frontend.Navegacao;
@@ -36,9 +38,13 @@ import lab2.reta.RetaPontoMedio;
 //
 // A tela do usuário é um dispositivo de ndh x ndv pixels (definido pelo
 // usuário) mostrado com zoom. Como no display, a tela é limpa: fundo preto,
-// sem grade e sem eixos, e os pixels são acesos na cor 00FF00.
-// As coordenadas são do dispositivo: origem (0, 0) no canto superior
-// esquerdo, y crescendo para baixo.
+// sem grade, e os pixels são acesos na cor 00FF00.
+//
+// Dois sistemas de coordenadas (caixa "Plano cartesiano"):
+//   ligada    - plano cartesiano: origem (0, 0) no centro da tela, y para
+//               cima, com os eixos x e y e os 8 octantes desenhados por cima
+//               (não acendem pixels). Aceita números negativos.
+//   desligada - dispositivo: origem no canto superior esquerdo, y para baixo.
 //
 // Cada aba é uma ferramenta:
 //   Pixel          - clique liga/desliga um pixel
@@ -63,6 +69,7 @@ public class TelaLab2 extends TelaLab {
     private JTextField campoNdh;
     private JTextField campoNdv;
     private JComboBox<String> comboZoom;
+    private JCheckBox caixaPlano;
 
     private JComboBox<String> comboReta;
     private JTextField campoX1;
@@ -79,18 +86,19 @@ public class TelaLab2 extends TelaLab {
     private FrameBuffer frameBuffer;
 
     // P1 da reta ou centro da circunferência, esperando o segundo clique
+    // (no sistema de coordenadas em uso)
     private Pixel primeiroClique;
 
     public TelaLab2(Navegacao navegacao) {
         super(navegacao, "Lab 2 - Retas e Circunferências",
                 "Retas: DDA e Ponto Médio (Bresenham, demais octantes por simetria)\n"
                         + "Circunferências: polinomial, trigonométrico e ponto médio\n"
-                        + "Coordenadas do dispositivo: origem no canto superior esquerdo.",
+                        + "Plano cartesiano: origem no centro, y para cima (desligado: dispositivo).",
                 "Escolha a aba e clique na grade, ou digite os pontos e clique em Desenhar.");
 
         painel = new PainelRaster();
         painel.setMostrarGrade(false);
-        painel.setMostrarEixos(false);
+        painel.setPlanoCartesiano(true);
         painel.setOuvinte(new PainelRaster.Ouvinte() {
             public void mouseSobre(Pixel pixel) {
                 mostrarMouse(pixel);
@@ -152,6 +160,15 @@ public class TelaLab2 extends TelaLab {
             }
         });
 
+        caixaPlano = new JCheckBox("Plano cartesiano", true);
+        caixaPlano.setOpaque(false);
+        caixaPlano.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                trocarSistema();
+            }
+        });
+
         JButton telaCheia = Componentes.botao("Tela cheia");
         telaCheia.addActionListener(new ActionListener() {
             @Override
@@ -169,6 +186,7 @@ public class TelaLab2 extends TelaLab {
         barra.add(Componentes.rotulo("   zoom"));
         barra.add(comboZoom);
         barra.add(limpar);
+        barra.add(caixaPlano);
         barra.add(telaCheia);
         return barra;
     }
@@ -176,7 +194,7 @@ public class TelaLab2 extends TelaLab {
     private JPanel criarAbaPixel() {
         return Componentes.painelAba(new JComponent[] {
                 linhaTexto("Clique numa célula da grade para ligar ou desligar um pixel (setPixel)."),
-                linhaTexto("Passe o mouse para ver a coordenada (x, y) do dispositivo na barra de status.") });
+                linhaTexto("Passe o mouse para ver a coordenada (x, y) na barra de status.") });
     }
 
     private JPanel criarAbaReta() {
@@ -186,10 +204,11 @@ public class TelaLab2 extends TelaLab {
         }
         comboReta.setSelectedIndex(1);
 
-        campoX1 = Componentes.campo("20", 3);
-        campoY1 = Componentes.campo("10", 3);
-        campoX2 = Componentes.campo("30", 3);
-        campoY2 = Componentes.campo("18", 3);
+        // valores iniciais no plano cartesiano
+        campoX1 = Componentes.campo("0", 3);
+        campoY1 = Componentes.campo("0", 3);
+        campoX2 = Componentes.campo("12", 3);
+        campoY2 = Componentes.campo("7", 3);
 
         JButton desenhar = Componentes.botao("Desenhar");
         desenhar.addActionListener(new ActionListener() {
@@ -199,9 +218,18 @@ public class TelaLab2 extends TelaLab {
             }
         });
 
+        JButton testarOctantes = Componentes.botao("Testar os 8 octantes");
+        testarOctantes.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                testarOctantes();
+            }
+        });
+
         JPanel algoritmo = Componentes.linhaEntrada();
         algoritmo.add(Componentes.rotulo("Algoritmo"));
         algoritmo.add(comboReta);
+        algoritmo.add(testarOctantes);
 
         JPanel pontos = Componentes.linhaEntrada();
         pontos.add(Componentes.rotulo("P1:  x1"));
@@ -225,8 +253,8 @@ public class TelaLab2 extends TelaLab {
         }
         comboCircunferencia.setSelectedIndex(2);
 
-        campoXc = Componentes.campo("32", 3);
-        campoYc = Componentes.campo("24", 3);
+        campoXc = Componentes.campo("0", 3);
+        campoYc = Componentes.campo("0", 3);
         campoRaio = Componentes.campo("15", 3);
 
         JButton desenhar = Componentes.botao("Desenhar");
@@ -291,6 +319,65 @@ public class TelaLab2 extends TelaLab {
         status.setMensagem(texto);
     }
 
+    // ===== Sistema de coordenadas =====
+
+    // null = coordenadas do dispositivo
+    private PlanoCartesiano plano() {
+        return painel.getPlano();
+    }
+
+    // Pixel do dispositivo -> ponto no sistema em uso
+    private Pixel noSistema(Pixel dispositivo) {
+        PlanoCartesiano plano = plano();
+        if (plano == null) {
+            return dispositivo;
+        }
+        return plano.paraCartesiano(dispositivo);
+    }
+
+    // Ponto no sistema em uso -> pixel do dispositivo
+    private Pixel noDispositivo(int x, int y) {
+        PlanoCartesiano plano = plano();
+        if (plano == null) {
+            return new Pixel(x, y);
+        }
+        return plano.paraDispositivo(x, y);
+    }
+
+    // Liga/desliga o plano cartesiano e converte os pontos já digitados
+    private void trocarSistema() {
+        PlanoCartesiano antes = plano();
+        painel.setPlanoCartesiano(caixaPlano.isSelected());
+        PlanoCartesiano depois = plano();
+        cancelarPrimeiroClique();
+
+        JTextField[][] pontos = { { campoX1, campoY1 }, { campoX2, campoY2 }, { campoXc, campoYc } };
+        for (int i = 0; i < pontos.length; i++) {
+            try {
+                Pixel p = new Pixel(Componentes.lerInteiro(pontos[i][0]), Componentes.lerInteiro(pontos[i][1]));
+                if (antes != null) {
+                    p = antes.paraDispositivo(p.getX(), p.getY());
+                }
+                if (depois != null) {
+                    p = depois.paraCartesiano(p);
+                }
+                pontos[i][0].setText("" + p.getX());
+                pontos[i][1].setText("" + p.getY());
+            } catch (NumberFormatException erro) {
+                // campo inválido: deixa como está
+            }
+        }
+
+        String texto;
+        if (depois == null) {
+            texto = "Coordenadas do dispositivo: origem no canto superior esquerdo, y para baixo";
+        } else {
+            texto = "Plano cartesiano: origem no centro, y para cima";
+        }
+        log("--- " + texto);
+        status.setMensagem(texto);
+    }
+
     // ===== Mouse =====
 
     private void mostrarMouse(Pixel pixel) {
@@ -298,7 +385,12 @@ public class TelaLab2 extends TelaLab {
             status.setCoordenadas("");
             return;
         }
-        status.setCoordenadas("(" + pixel.getX() + ", " + pixel.getY() + ")");
+        Pixel ponto = noSistema(pixel);
+        if (plano() == null) {
+            status.setCoordenadas("(" + pixel.getX() + ", " + pixel.getY() + ")");
+        } else {
+            status.setCoordenadas("x = " + ponto.getX() + "  y = " + ponto.getY() + "   (dispositivo " + pixel + ")");
+        }
 
         if (ferramenta == PIXEL) {
             String estado;
@@ -307,20 +399,20 @@ public class TelaLab2 extends TelaLab {
             } else {
                 estado = "apagado";
             }
-            status.setMensagem("Pixel " + pixel + " " + estado + ". Clique para ligar/desligar.");
+            status.setMensagem("Pixel " + ponto + " " + estado + ". Clique para ligar/desligar.");
         } else if (ferramenta == RETA) {
             if (primeiroClique == null) {
                 status.setMensagem("Clique para escolher P1.");
             } else {
-                int dx = pixel.getX() - primeiroClique.getX();
-                int dy = pixel.getY() - primeiroClique.getY();
+                int dx = ponto.getX() - primeiroClique.getX();
+                int dy = ponto.getY() - primeiroClique.getY();
                 String declive;
                 if (dx == 0) {
                     declive = "infinito";
                 } else {
                     declive = String.format(Locale.US, "%.3f", (double) dy / dx);
                 }
-                status.setMensagem("P1 = " + primeiroClique + "   P2 = " + pixel + "   dx = " + dx + "  dy = " + dy
+                status.setMensagem("P1 = " + primeiroClique + "   P2 = " + ponto + "   dx = " + dx + "  dy = " + dy
                         + "  m = " + declive + "  octante " + RetaPontoMedio.descobrirOctante(dx, dy)
                         + "   (clique para desenhar)");
             }
@@ -328,7 +420,7 @@ public class TelaLab2 extends TelaLab {
             if (primeiroClique == null) {
                 status.setMensagem("Clique para escolher o centro.");
             } else {
-                status.setMensagem("Centro = " + primeiroClique + "   raio = " + raioAte(pixel)
+                status.setMensagem("Centro = " + primeiroClique + "   raio = " + raioAte(ponto)
                         + "   (clique para desenhar)");
             }
         }
@@ -340,15 +432,16 @@ public class TelaLab2 extends TelaLab {
             return;
         }
 
+        Pixel ponto = noSistema(pixel);
         if (primeiroClique == null) {
-            primeiroClique = pixel;
+            primeiroClique = ponto;
             painel.setMarcador(pixel);
             if (ferramenta == RETA) {
-                campoX1.setText("" + pixel.getX());
-                campoY1.setText("" + pixel.getY());
+                campoX1.setText("" + ponto.getX());
+                campoY1.setText("" + ponto.getY());
             } else {
-                campoXc.setText("" + pixel.getX());
-                campoYc.setText("" + pixel.getY());
+                campoXc.setText("" + ponto.getX());
+                campoYc.setText("" + ponto.getY());
             }
             mostrarMouse(pixel);
             return;
@@ -357,11 +450,11 @@ public class TelaLab2 extends TelaLab {
         Pixel inicio = primeiroClique;
         cancelarPrimeiroClique();
         if (ferramenta == RETA) {
-            campoX2.setText("" + pixel.getX());
-            campoY2.setText("" + pixel.getY());
-            desenharReta(inicio.getX(), inicio.getY(), pixel.getX(), pixel.getY());
+            campoX2.setText("" + ponto.getX());
+            campoY2.setText("" + ponto.getY());
+            desenharReta(inicio.getX(), inicio.getY(), ponto.getX(), ponto.getY());
         } else {
-            int raio = raioAte(pixel);
+            int raio = raioAte(ponto);
             campoRaio.setText("" + raio);
             desenharCircunferencia(inicio.getX(), inicio.getY(), raio);
         }
@@ -372,10 +465,10 @@ public class TelaLab2 extends TelaLab {
         painel.setMarcador(null);
     }
 
-    // Distância do centro até o pixel, arredondada
-    private int raioAte(Pixel pixel) {
-        int dx = pixel.getX() - primeiroClique.getX();
-        int dy = pixel.getY() - primeiroClique.getY();
+    // Distância do centro até o ponto, arredondada
+    private int raioAte(Pixel ponto) {
+        int dx = ponto.getX() - primeiroClique.getX();
+        int dy = ponto.getY() - primeiroClique.getY();
         return (int) Math.round(Math.sqrt(dx * dx + dy * dy));
     }
 
@@ -388,7 +481,7 @@ public class TelaLab2 extends TelaLab {
             frameBuffer.setPixel(pixel.getX(), pixel.getY(), COR_PIXEL);
             acao = "ligado";
         }
-        log("setPixel" + pixel + " " + acao);
+        log("setPixel" + noSistema(pixel) + " " + acao);
         painel.atualizar();
         mostrarMouse(pixel);
     }
@@ -437,12 +530,79 @@ public class TelaLab2 extends TelaLab {
                 + raio, pixels);
     }
 
-    // Raster que acende o pixel no frame buffer e anota a ordem
+    // Desenha, a partir da origem, uma reta dentro de cada octante, com x e y
+    // positivos e negativos, e confere no log se cada pixel caiu no octante
+    // certo. Liga o plano cartesiano, onde os octantes são os da matemática.
+    private void testarOctantes() {
+        if (caixaPlano.isSelected() == false) {
+            caixaPlano.setSelected(true);
+            trocarSistema();
+        }
+
+        int longo = Math.min(frameBuffer.getNdh(), frameBuffer.getNdv()) / 2 - 3;
+        int curto = longo * 2 / 5;
+        if (curto < 1) {
+            mostrarErro("Tela pequena", "Aumente ndh e ndv para testar os octantes.");
+            return;
+        }
+        int[][] fins = { { longo, curto }, { curto, longo }, { -curto, longo }, { -longo, curto },
+                { -longo, -curto }, { -curto, -longo }, { curto, -longo }, { longo, -curto } };
+
+        AlgoritmoReta algoritmo = algoritmosReta[comboReta.getSelectedIndex()];
+        log("--- Teste dos 8 octantes (" + algoritmo.getNome() + "): retas saindo de (0, 0)");
+        int erros = 0;
+        for (int i = 0; i < fins.length; i++) {
+            int esperado = i + 1;
+            int x2 = fins[i][0];
+            int y2 = fins[i][1];
+            List<Pixel> pixels = new ArrayList<Pixel>();
+            algoritmo.desenhar(registrar(pixels), 0, 0, x2, y2, COR_PIXEL);
+
+            int calculado = RetaPontoMedio.descobrirOctante(x2, y2);
+            int foraDoOctante = 0;
+            for (int k = 0; k < pixels.size(); k++) {
+                Pixel p = pixels.get(k);
+                if (RetaPontoMedio.estaNoOctante(esperado, p.getX(), p.getY()) == false) {
+                    foraDoOctante++;
+                }
+            }
+            Pixel ultimo = pixels.get(pixels.size() - 1);
+            boolean chegou = ultimo.getX() == x2 && ultimo.getY() == y2;
+
+            String resultado;
+            if (calculado == esperado && foraDoOctante == 0 && chegou) {
+                resultado = "OK";
+            } else {
+                resultado = "ERRO";
+                erros++;
+            }
+            log("octante " + esperado + ": (0, 0) -> (" + x2 + ", " + y2 + ")  calculado " + calculado + ", "
+                    + pixels.size() + " pixels, " + foraDoOctante + " fora do octante, termina em " + ultimo
+                    + "  " + resultado);
+        }
+        painel.atualizar();
+
+        if (erros == 0) {
+            status.setMensagem("Teste dos 8 octantes: todas as retas no octante certo.");
+        } else {
+            status.setMensagem("Teste dos 8 octantes: " + erros + " reta(s) com erro, veja o log.");
+        }
+    }
+
+    // Raster que acende o pixel no frame buffer e anota a ordem.
+    // Os pontos chegam no sistema em uso (plano cartesiano ou dispositivo).
     private Raster registrar(final List<Pixel> pixels) {
+        PlanoCartesiano plano = plano();
+        final Raster destino;
+        if (plano == null) {
+            destino = frameBuffer;
+        } else {
+            destino = plano.criarRaster(frameBuffer);
+        }
         return new Raster() {
             public void setPixel(int x, int y, int cor) {
                 pixels.add(new Pixel(x, y));
-                frameBuffer.setPixel(x, y, cor);
+                destino.setPixel(x, y, cor);
             }
         };
     }
@@ -456,7 +616,8 @@ public class TelaLab2 extends TelaLab {
         for (int i = 0; i < pixels.size(); i++) {
             Pixel p = pixels.get(i);
             linha.append(String.format("%3d: ", i + 1)).append(p);
-            if (frameBuffer.contem(p.getX(), p.getY()) == false) {
+            Pixel d = noDispositivo(p.getX(), p.getY());
+            if (frameBuffer.contem(d.getX(), d.getY()) == false) {
                 linha.append(" fora");
                 fora++;
             }

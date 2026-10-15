@@ -8,10 +8,13 @@ import java.awt.Rectangle;
 import javax.swing.JComponent;
 
 import core.dispositivo.FrameBuffer;
+import core.dispositivo.PlanoCartesiano;
 import core.modelo.Pixel;
 
 // Régua com as coordenadas do dispositivo, em cima (dcx) e à esquerda (dcy)
 // do PainelRaster. A posição do mouse aparece destacada em amarelo.
+// Com o plano cartesiano ligado, mostra x e y do plano (origem no centro,
+// y crescendo para cima), com as marcas no centro de cada pixel.
 public class Regua extends JComponent {
 
     public static final int ESPESSURA = 18;
@@ -72,12 +75,29 @@ public class Regua extends JComponent {
             }
         }
 
+        // Pixel do dispositivo onde fica o valor 0 da régua
+        PlanoCartesiano plano = painel.getPlano();
+        int zero = 0;
+        int meio = 0;
+        if (plano != null) {
+            if (horizontal) {
+                zero = plano.getOrigem().getX();
+            } else {
+                zero = plano.getOrigem().getY();
+            }
+            meio = zoom / 2;
+        }
+
         FontMetrics medidas = g.getFontMetrics();
         g.setColor(Color.BLACK);
-        inicio = inicio - inicio % passo;
+        inicio = inicio - Math.floorMod(inicio - zero, passo);
         for (int v = inicio; v < fim; v += passo) {
-            int posicao = v * zoom;
-            String texto = "" + v;
+            int posicao = v * zoom + meio;
+            int valor = v - zero;
+            if (plano != null && horizontal == false) {
+                valor = -valor; // y do plano cresce para cima
+            }
+            String texto = "" + valor;
             if (horizontal) {
                 g.drawLine(posicao, ESPESSURA - 6, posicao, ESPESSURA);
                 g.drawString(texto, posicao + 2, medidas.getAscent());

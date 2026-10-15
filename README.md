@@ -157,6 +157,8 @@ java -jar frontend/target/coordinatex.jar
 
 > No Windows (PowerShell/CMD) os comandos são os mesmos.
 
+**Testes automáticos** (JUnit 5): `mvn test`. Conferem o plano cartesiano (`core`) e, no Lab 2, se retas e circunferências com coordenadas **positivas e negativas** caem nos **octantes certos**.
+
 ### Opção B — IntelliJ IDEA
 
 1. `File → Open…` e selecione a **pasta raiz** `CG-CoordinateX` (o `pom.xml` da raiz). O IntelliJ importa todos os módulos.
@@ -319,7 +321,14 @@ Implementar uma **tabela de cores (Look-Up Table)** com **24 bits de profundidad
 
 Implementar os algoritmos de desenho de reta da aula 3 (**DDA** e **Ponto Médio/Bresenham**, com os demais octantes por **simetria**) e os algoritmos de desenho da circunferência (**polinomial**, **trigonométrico** e **ponto médio**).
 
-Todos trabalham em **coordenadas do dispositivo** (inteiras) e desenham chamando `raster.setPixel(x, y, cor)`.
+Todos trabalham com coordenadas inteiras e desenham chamando `raster.setPixel(x, y, cor)`. A tela pode usar dois sistemas (caixa **Plano cartesiano** na barra de opções):
+
+| Sistema | Origem | y cresce | Coordenadas |
+|---|---|---|---|
+| **Plano cartesiano** (padrão) | centro da tela `(ndh/2, ndv/2)` | para **cima** | positivas e **negativas** (64 × 48: `−32 ≤ x ≤ 31`, `−23 ≤ y ≤ 24`) |
+| **Dispositivo** | canto superior esquerdo | para **baixo** | `0 ≤ x ≤ ndh − 1`, `0 ≤ y ≤ ndv − 1` |
+
+No plano cartesiano o `core.dispositivo.PlanoCartesiano` converte cada `setPixel(x, y)` para o pixel `(ndh/2 + x, ndv/2 − y)` do dispositivo, e a tela mostra por cima (sem acender pixels) os **eixos x e y**, as diagonais tracejadas `y = x` e `y = −x` e o **número de cada octante**.
 
 ### Retas
 
@@ -346,9 +355,9 @@ Todos trabalham em **coordenadas do dispositivo** (inteiras) e desenham chamando
 | 7 | `dy < −dx ≤ 0` | `(−y, x)` |
 | 8 | `dx ≥ −dy > 0` | `(x, −y)` |
 
-> Como o y do dispositivo cresce para baixo, o 1º octante aparece na tela "para a direita e para baixo".
+> No plano cartesiano o 1º octante aparece "para a direita e para cima", como na matemática. Com o plano desligado (dispositivo, y para baixo) ele aparece "para a direita e para baixo".
 
-**Conferindo com o slide:** a reta de `(20,10)` a `(30,18)` com o Ponto Médio acende exatamente `(20,10) (21,11) (22,12) (23,12) (24,13) (25,14) (26,15) (27,16) (28,16) (29,17) (30,18)`, igual à tabela da aula 3. O DDA de `(6,9)` a `(11,12)` acende `(6,9) (7,10) (8,10) (9,11) (10,11) (11,12)`.
+**Conferindo com o slide** (com o plano cartesiano **desligado**): a reta de `(20,10)` a `(30,18)` com o Ponto Médio acende exatamente `(20,10) (21,11) (22,12) (23,12) (24,13) (25,14) (26,15) (27,16) (28,16) (29,17) (30,18)`, igual à tabela da aula 3. O DDA de `(6,9)` a `(11,12)` acende `(6,9) (7,10) (8,10) (9,11) (10,11) (11,12)`.
 
 ### Circunferências
 
@@ -363,9 +372,9 @@ Todos calculam só 1/8 da circunferência (de 90° a 45°) e usam a **simetria d
 ### Passo a passo na interface
 
 1. Defina o dispositivo: `ndh` × `ndv` (padrão 64 × 48) e clique em **Aplicar**. Escolha o **zoom** (padrão 8x).
-2. Escolha a ferramenta pela aba. A tela imita o display: fundo preto **totalmente limpo** (sem grade e sem eixos) e os pixels são acesos sempre na cor **`00FF00`**:
+2. Escolha a ferramenta pela aba. A tela imita o display: fundo preto sem grade e os pixels são acesos sempre na cor **`00FF00`**. Com o **Plano cartesiano** ligado aparecem os eixos e os octantes (desligue para ver o display totalmente limpo, em coordenadas do dispositivo):
    - **Pixel** — clique numa célula para **ligar/desligar** um pixel.
-   - **Reta** — escolha o algoritmo; clique em **P1** e depois em **P2**, ou digite `x1 y1 x2 y2` e clique em **Desenhar**. Enquanto escolhe o P2, a barra de status mostra `dx`, `dy`, o declive `m` e o **octante**.
+   - **Reta** — escolha o algoritmo; clique em **P1** e depois em **P2**, ou digite `x1 y1 x2 y2` e clique em **Desenhar**. Enquanto escolhe o P2, a barra de status mostra `dx`, `dy`, o declive `m` e o **octante**. O botão **Testar os 8 octantes** desenha, a partir da origem, uma reta em cada octante (x e y positivos e negativos) e escreve no log se cada uma caiu no octante certo (`OK`/`ERRO`).
    - **Circunferência** — escolha o algoritmo; clique no **centro** e depois num ponto da borda (define o raio), ou digite `xc yc raio` e clique em **Desenhar**.
 3. O **log** mostra cada `setPixel` de cada desenho, na ordem em que o algoritmo chamou. Serve para conferir com as tabelas dos slides.
 4. **Limpar** apaga a tela; **Tela cheia** mostra o frame buffer no monitor sem zoom (ESC volta).
