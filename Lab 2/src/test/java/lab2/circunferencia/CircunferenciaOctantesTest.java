@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -120,6 +121,21 @@ class CircunferenciaOctantesTest {
             assertTrue(p.getX() < origem.getX(), p + " devia estar à esquerda da origem");
             assertTrue(p.getY() > origem.getY(), p + " devia estar abaixo da origem");
         }
+    }
+
+    @Test
+    void polinomialCalculaRaiosQueTransbordamUmaMultiplicacaoInteira() {
+        final Set<String> pixels = new HashSet<String>();
+        new CircunferenciaPolinomial().desenhar(new Raster() {
+            public void setPixel(int x, int y, int cor) {
+                pixels.add(texto(x, y));
+            }
+        }, 0, 0, 50000, 0);
+
+        assertTrue(pixels.contains(texto(50000, 0)));
+        assertTrue(pixels.contains(texto(0, 50000)));
+        assertTrue(pixels.contains(texto(-50000, 0)));
+        assertTrue(pixels.contains(texto(0, -50000)));
     }
 
     // Andando em volta do centro, cada pixel encosta no próximo (sem buracos)

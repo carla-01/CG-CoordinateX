@@ -37,14 +37,15 @@ import lab2.reta.RetaPontoMedio;
 // Lab 2: rasterização de retas e circunferências.
 //
 // A tela do usuário é um dispositivo de ndh x ndv pixels (definido pelo
-// usuário) mostrado com zoom. Como no display, a tela é limpa: fundo preto,
-// sem grade, e os pixels são acesos na cor 00FF00.
+// usuário), mostrado em escala fixa. A tela inicia preta, sem eixos; o plano
+// cartesiano pode ser ativado pela opção correspondente.
 //
 // Dois sistemas de coordenadas (caixa "Plano cartesiano"):
 //   ligada    - plano cartesiano: origem (0, 0) no centro da tela, y para
 //               cima, com os eixos x e y e os 8 octantes desenhados por cima
 //               (não acendem pixels). Aceita números negativos.
-//   desligada - dispositivo: origem no canto superior esquerdo, y para baixo.
+//   desligada - dispositivo: tela preta, origem no canto superior esquerdo,
+//               y para baixo.
 //
 // Cada aba é uma ferramenta:
 //   Pixel          - clique liga/desliga um pixel
@@ -56,7 +57,7 @@ public class TelaLab2 extends TelaLab {
     private static final int RETA = 1;
     private static final int CIRCUNFERENCIA = 2;
 
-    private static final int[] ZOOMS = { 1, 2, 4, 6, 8, 10, 12, 16, 20, 24, 32 };
+    private static final int ZOOM_VISUALIZACAO = 8;
     private static final int COR_FUNDO = Cores.PRETO;
     private static final int COR_PIXEL = Cores.VERDE; // 00FF00
 
@@ -64,11 +65,10 @@ public class TelaLab2 extends TelaLab {
     private final AlgoritmoCircunferencia[] algoritmosCircunferencia = { new CircunferenciaPolinomial(),
             new CircunferenciaTrigonometrica(), new CircunferenciaPontoMedio() };
 
-    private int ferramenta = RETA;
+    private int ferramenta = PIXEL;
 
     private JTextField campoNdh;
     private JTextField campoNdv;
-    private JComboBox<String> comboZoom;
     private JCheckBox caixaPlano;
 
     private JComboBox<String> comboReta;
@@ -93,12 +93,12 @@ public class TelaLab2 extends TelaLab {
         super(navegacao, "Lab 2 - Retas e Circunferências",
                 "Retas: DDA e Ponto Médio (Bresenham, demais octantes por simetria)\n"
                         + "Circunferências: polinomial, trigonométrico e ponto médio\n"
-                        + "Plano cartesiano: origem no centro, y para cima (desligado: dispositivo).",
-                "Escolha a aba e clique na grade, ou digite os pontos e clique em Desenhar.");
+                        + "Plano cartesiano opcional: origem no centro, y para cima.",
+                "Tela preta ao iniciar. Ative o plano cartesiano quando quiser exibir os eixos.");
 
         painel = new PainelRaster();
         painel.setMostrarGrade(false);
-        painel.setPlanoCartesiano(true);
+        painel.setPlanoCartesiano(false);
         painel.setOuvinte(new PainelRaster.Ouvinte() {
             public void mouseSobre(Pixel pixel) {
                 mostrarMouse(pixel);
@@ -113,7 +113,7 @@ public class TelaLab2 extends TelaLab {
         abas.addTab("Pixel", criarAbaPixel());
         abas.addTab("Reta", criarAbaReta());
         abas.addTab("Circunferência", criarAbaCircunferencia());
-        abas.setSelectedIndex(RETA);
+        abas.setSelectedIndex(PIXEL);
         abas.addChangeListener(new ChangeListener() {
             public void stateChanged(ChangeEvent e) {
                 ferramenta = abas.getSelectedIndex();
@@ -124,7 +124,7 @@ public class TelaLab2 extends TelaLab {
         montar(criarBarraOpcoes(), painel.criarRolagem(), abas);
 
         criarFrameBuffer(64, 48);
-        painel.setZoom(Componentes.lerZoom(comboZoom));
+        painel.setZoom(ZOOM_VISUALIZACAO);
     }
 
     // ===== Montagem da tela =====
@@ -140,14 +140,6 @@ public class TelaLab2 extends TelaLab {
             }
         });
 
-        comboZoom = Componentes.comboZoom(ZOOMS, 8);
-        comboZoom.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                painel.setZoom(Componentes.lerZoom(comboZoom));
-            }
-        });
-
         JButton limpar = Componentes.botao("Limpar");
         limpar.addActionListener(new ActionListener() {
             @Override
@@ -160,7 +152,7 @@ public class TelaLab2 extends TelaLab {
             }
         });
 
-        caixaPlano = new JCheckBox("Plano cartesiano", true);
+        caixaPlano = new JCheckBox("Plano cartesiano", false);
         caixaPlano.setOpaque(false);
         caixaPlano.addActionListener(new ActionListener() {
             @Override
@@ -183,8 +175,6 @@ public class TelaLab2 extends TelaLab {
         barra.add(Componentes.rotulo("ndv"));
         barra.add(campoNdv);
         barra.add(aplicar);
-        barra.add(Componentes.rotulo("   zoom"));
-        barra.add(comboZoom);
         barra.add(limpar);
         barra.add(caixaPlano);
         barra.add(telaCheia);
@@ -193,7 +183,7 @@ public class TelaLab2 extends TelaLab {
 
     private JPanel criarAbaPixel() {
         return Componentes.painelAba(new JComponent[] {
-                linhaTexto("Clique numa célula da grade para ligar ou desligar um pixel (setPixel)."),
+                linhaTexto("Clique na tela para ligar ou desligar um pixel (setPixel)."),
                 linhaTexto("Passe o mouse para ver a coordenada (x, y) na barra de status.") });
     }
 
@@ -204,7 +194,7 @@ public class TelaLab2 extends TelaLab {
         }
         comboReta.setSelectedIndex(1);
 
-        // valores iniciais no plano cartesiano
+        // Valores iniciais em coordenadas do dispositivo.
         campoX1 = Componentes.campo("0", 3);
         campoY1 = Componentes.campo("0", 3);
         campoX2 = Componentes.campo("12", 3);
@@ -524,7 +514,13 @@ public class TelaLab2 extends TelaLab {
         AlgoritmoCircunferencia algoritmo = algoritmosCircunferencia[comboCircunferencia.getSelectedIndex()];
         List<Pixel> pixels = new ArrayList<Pixel>();
 
-        algoritmo.desenhar(registrar(pixels), xc, yc, raio, COR_PIXEL);
+        Raster raster;
+        if (algoritmo instanceof CircunferenciaPolinomial) {
+            raster = registrar(pixels, true, xc, raio);
+        } else {
+            raster = registrar(pixels);
+        }
+        algoritmo.desenhar(raster, xc, yc, raio, COR_PIXEL);
 
         terminarDesenho("Circunferência " + algoritmo.getNome() + ": centro (" + xc + ", " + yc + "), raio "
                 + raio, pixels);
@@ -592,6 +588,11 @@ public class TelaLab2 extends TelaLab {
     // Raster que acende o pixel no frame buffer e anota a ordem.
     // Os pontos chegam no sistema em uso (plano cartesiano ou dispositivo).
     private Raster registrar(final List<Pixel> pixels) {
+        return registrar(pixels, false, 0, 0);
+    }
+
+    private Raster registrar(final List<Pixel> pixels, final boolean degradarHorizontalmente, final int centroX,
+            final int raio) {
         PlanoCartesiano plano = plano();
         final Raster destino;
         if (plano == null) {
@@ -602,9 +603,29 @@ public class TelaLab2 extends TelaLab {
         return new Raster() {
             public void setPixel(int x, int y, int cor) {
                 pixels.add(new Pixel(x, y));
-                destino.setPixel(x, y, cor);
+                int corFinal = cor;
+                if (degradarHorizontalmente) {
+                    Pixel dispositivo = noDispositivo(x, y);
+                    if (frameBuffer.contem(dispositivo.getX(), dispositivo.getY())) {
+                        double t = raio == 0 ? 0.0 : Math.min(1.0, Math.abs((double) x - centroX) / raio);
+                        double intensidade = 1.0 - t;
+                        corFinal = misturarCores(frameBuffer.getCorFundo(), cor, intensidade);
+                    }
+                }
+                destino.setPixel(x, y, corFinal);
             }
         };
+    }
+
+    private int misturarCores(int fundo, int frente, double intensidade) {
+        int vermelho = misturarCanal((fundo >> 16) & 0xFF, (frente >> 16) & 0xFF, intensidade);
+        int verde = misturarCanal((fundo >> 8) & 0xFF, (frente >> 8) & 0xFF, intensidade);
+        int azul = misturarCanal(fundo & 0xFF, frente & 0xFF, intensidade);
+        return (vermelho << 16) | (verde << 8) | azul;
+    }
+
+    private int misturarCanal(int fundo, int frente, double intensidade) {
+        return (int) Math.round(fundo + (frente - fundo) * intensidade);
     }
 
     // Escreve no log cada setPixel, na ordem em que o algoritmo chamou

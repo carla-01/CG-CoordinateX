@@ -21,11 +21,15 @@ public class CircunferenciaPolinomial extends AlgoritmoCircunferencia {
     }
 
     public void desenhar(Raster raster, int xc, int yc, int r, int cor) {
+        if (r < 0) {
+            throw new IllegalArgumentException("O raio deve ser maior ou igual a zero.");
+        }
+        double raioQuadrado = (double) r * r;
         double xFinal = r / Math.sqrt(2);
         double x = 0;
 
         while (x <= xFinal) {
-            double y = Math.sqrt(r * r - x * x);
+            double y = Math.sqrt(raioQuadrado - x * x);
             pontosCirculo(raster, xc, yc, (int) Math.round(x), (int) Math.round(y), cor);
             x = x + PASSO;
         }
