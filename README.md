@@ -469,8 +469,9 @@ comutam; Translação·Rotação, Translação·Escala e Escala(sx ≠ sy)·Rota
    - **Polígono regular** — clique no centro, puxe até a borda (define o raio e o vértice 1) e clique de novo
      (`lados` no campo ao lado).
 
-   O desenho feito aqui vira o polígono das transformações e **fica onde foi desenhado**. **Cancelar** desiste do
-   desenho em andamento.
+   O desenho feito aqui vira o polígono das transformações. Com a caixa **Levar para a origem** (marcada por
+   padrão) ele é centrado em `(0, 0)` ao fechar, como pede o enunciado; desmarcada, fica onde foi desenhado.
+   **Cancelar** desiste do desenho em andamento.
 3. Aba **Polígono**: escolha *Regular (n lados)* (`lados`, `raio`), *Irregular (pronto)* ou *Irregular (digitar
    vértices)* (`x,y; x,y; ...`, com ponto decimal) e clique em **Criar polígono**. O padrão é o pentágono
    *irregular* `(-8,-7) (6,-8) (9,2) (1,9) (-8,4)`, de propósito sem simetria, para a rotação e a reflexão aparecerem.

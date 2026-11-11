@@ -121,6 +121,7 @@ public class TelaLab3 extends TelaLab {
     // aba Pixel
     private JComboBox<String> comboModo;
     private JTextField campoLadosDesenho;
+    private JCheckBox caixaOrigem;
     private JLabel textoAjuda;
 
     private JComboBox<String> comboTipo;
@@ -291,13 +292,17 @@ public class TelaLab3 extends TelaLab {
         JButton cancelar = Componentes.botao("Cancelar");
         aoClicar(cancelar, this::cancelarDesenho);
 
+        // o enunciado pede o polígono na origem do sistema cartesiano
+        caixaOrigem = new JCheckBox("Levar para a origem", true);
+        caixaOrigem.setOpaque(false);
+
         textoAjuda = Componentes.rotulo(AJUDAS[MODO_PIXEL]);
         JPanel ajuda = Componentes.linhaEntrada();
         ajuda.add(textoAjuda);
 
-        return Componentes.painelAba(new JComponent[] { linha("Ferramenta", comboModo),
+        return Componentes.painelAba(new JComponent[] { linha("Ferramenta", comboModo, caixaOrigem),
                 linha("lados (regular)", campoLadosDesenho, fechar, cancelar), ajuda,
-                linhaTexto("O desenho vira o polígono das transformações (fica onde foi desenhado).") });
+                linhaTexto("O desenho vira o polígono das transformações (com a caixa marcada, centrado em (0,0)).") });
     }
 
     private JPanel criarAbaPoligono() {
@@ -743,8 +748,13 @@ public class TelaLab3 extends TelaLab {
                 Transformacoes.compor(Transformacoes.rotacao(graus - 90), Transformacoes.translacao(c.getX(), c.getY())));
     }
 
-    // O desenho vira o polígono das transformações (fica onde foi desenhado)
+    // O desenho vira o polígono das transformações. Com a caixa "Levar para a
+    // origem", a média dos vértices vai para (0, 0), como pede o enunciado.
     private void usarDesenho(Poligono p, String nome) {
+        if (caixaOrigem.isSelected()) {
+            p = p.centralizadoNaOrigem();
+            nome = nome + " (levado para a origem)";
+        }
         pontosDesenho.clear();
         previa = null;
         original = p;
