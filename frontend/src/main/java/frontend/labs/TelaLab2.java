@@ -81,6 +81,7 @@ public class TelaLab2 extends TelaLab {
     private JTextField campoXc;
     private JTextField campoYc;
     private JTextField campoRaio;
+    private JTextField campoPassoTeta;
 
     private PainelRaster painel;
     private FrameBuffer frameBuffer;
@@ -255,9 +256,14 @@ public class TelaLab2 extends TelaLab {
             }
         });
 
+        // passo i do método trigonométrico ("i = define o passo"); 0 = automático
+        campoPassoTeta = Componentes.campo("5", 3);
+
         JPanel algoritmo = Componentes.linhaEntrada();
         algoritmo.add(Componentes.rotulo("Algoritmo"));
         algoritmo.add(comboCircunferencia);
+        algoritmo.add(Componentes.rotulo("   passo θ (graus, trigonométrico; 0 = automático)"));
+        algoritmo.add(campoPassoTeta);
 
         JPanel parametros = Componentes.linhaEntrada();
         parametros.add(Componentes.rotulo("Centro:  xc"));
@@ -514,6 +520,25 @@ public class TelaLab2 extends TelaLab {
         AlgoritmoCircunferencia algoritmo = algoritmosCircunferencia[comboCircunferencia.getSelectedIndex()];
         List<Pixel> pixels = new ArrayList<Pixel>();
 
+        String passo = "";
+        if (algoritmo instanceof CircunferenciaTrigonometrica) {
+            CircunferenciaTrigonometrica trigonometrica = (CircunferenciaTrigonometrica) algoritmo;
+            try {
+                trigonometrica.setPassoGraus(Componentes.lerNumero(campoPassoTeta));
+            } catch (IllegalArgumentException erro) {
+                mostrarErro("Passo invalido", "O passo θ deve ser um numero entre 0 e 45 graus (0 = automatico).");
+                return;
+            }
+            double graus = trigonometrica.getPassoGraus();
+            if (graus == 0) {
+                passo = ", passo θ automático";
+            } else if (graus == Math.rint(graus)) {
+                passo = ", passo θ = " + (long) graus + "°";
+            } else {
+                passo = ", passo θ = " + graus + "°";
+            }
+        }
+
         Raster raster;
         if (algoritmo instanceof CircunferenciaPolinomial) {
             raster = registrar(pixels, true, xc, raio);
@@ -523,7 +548,7 @@ public class TelaLab2 extends TelaLab {
         algoritmo.desenhar(raster, xc, yc, raio, COR_PIXEL);
 
         terminarDesenho("Circunferência " + algoritmo.getNome() + ": centro (" + xc + ", " + yc + "), raio "
-                + raio, pixels);
+                + raio + passo, pixels);
     }
 
     // Desenha, a partir da origem, uma reta dentro de cada octante, com x e y
