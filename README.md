@@ -123,7 +123,10 @@ CG-CoordinateX/
 │       │   └── Poligono.java               # lista de vértices; regular, irregular, retângulo, centralizar
 │       ├── transformacao/
 │       │   ├── Transformacoes.java         # as matrizes da aula G5 (T, S, R, reflexões, cisalhamento, compostas)
-│       │   └── SequenciaTransformacoes.java# lê "T(-2,-1) E(2,2) T(2,1)" e calcula a matriz composta
+│       │   ├── SequenciaTransformacoes.java# lê "T(-2,-1) E(2,2) T(2,1)" e calcula a matriz composta
+│       │   └── GatoDeArnold.java           # Γ(x, y) = (x + y, x + 2y) mod 1, período
+│       ├── recorte/
+│       │   └── CohenSutherland.java        # recorte de linha na janela (códigos de 4 bits)
 │       └── desenho/
 │           └── DesenhoPoligono.java        # lados do polígono com o Ponto Médio (RetaPontoMedio, Lab 2)
 │
@@ -174,7 +177,7 @@ java -jar frontend/target/coordinatex.jar
 
 > No Windows (PowerShell/CMD) os comandos são os mesmos.
 
-**Testes automáticos** (JUnit 5): `mvn test`. Conferem o plano cartesiano (`core`) e, no Lab 2, se retas e circunferências com coordenadas **positivas e negativas** caem nos **octantes certos**. No Lab 3, conferem as matrizes (inclusive os exemplos dos slides e a tabela de comutatividade), o polígono centrado na origem, a leitura de sequências compostas e o desenho do contorno.
+**Testes automáticos** (JUnit 5): `mvn test`. Conferem o plano cartesiano (`core`) e, no Lab 2, se retas e circunferências com coordenadas **positivas e negativas** caem nos **octantes certos**. No Lab 3, conferem as matrizes (inclusive os exemplos dos slides e a tabela de comutatividade), o polígono centrado na origem, a leitura de sequências compostas, o desenho do contorno, o Gato de Arnold (exemplos de `mod 1` do slide 34, matriz fatorada e período) e o recorte Cohen-Sutherland (códigos e casos da janela do slide 46).
 
 ### Opção B — IntelliJ IDEA
 
@@ -442,6 +445,19 @@ tela** (`TelaLab3`), como o Lab 1 e o Lab 2. Só reaproveita código por depend�
 | Rotação com ponto fixo | `rotacaoComPontoFixo(θ, px, py)` | `T(p) · R(θ) · T(−p)` | 26–27 |
 | Composição qualquer | `compor(M1, M2, ...)` | `Mn · ... · M2 · M1` | 21 |
 | Janela → porta de visão | `janelaViewport(...)` | `T(umin,vmin) · S · T(−xmin,−ymin)` | 29–33 |
+| Gato de Arnold | `GatoDeArnold.aplicar(x, y)` | `Γ(x, y) = (x + y, x + 2y) mod 1`, `M = [1 1; 1 2] = CisY(1) · CisX(1)` | 34–36 |
+
+**Gato de Arnold** (`lab3.transformacao.GatoDeArnold`). `x mod 1` é o número em `[0, 1)` que difere de `x` por um
+inteiro (`2,3 mod 1 = 0,3`, `−3,7 mod 1 = 0,3`), então `Γ` sempre leva o ponto para o quadrado unitário. `det M = 1`
+(não muda a área), mas por causa do `mod 1` ela **não é afim** e não entra na matriz acumulada. Numa imagem N × N,
+o pixel `(i, j)` (ponto `(i/N, j/N)`) vai para `((i + j) mod N, (i + 2j) mod N)`; como a conta é exata, depois de
+um número de passos (o **período**, ex.: 30 para N = 40) todos os pixels voltam e o desenho reaparece.
+
+**Recorte Cohen-Sutherland** (`lab3.recorte.CohenSutherland`, slides 37–46). Cada ponto recebe um código de 4 bits
+(bit 1 acima, bit 2 abaixo, bit 3 direita, bit 4 esquerda). Os dois códigos `0000` → aceitação trivial; `AND`
+diferente de `0000` → rejeição trivial; senão a linha é cortada na borda indicada pelo bit (na ordem 1, 2, 3, 4),
+com `y = y1 + (a − x1)(y2 − y1)/(x2 − x1)` na borda vertical `x = a` e `x = x1 + (b − y1)(x2 − x1)/(y2 − y1)` na
+horizontal `y = b`, e o teste se repete.
 
 A comutatividade da composição (slide 28) é conferida pelo botão **Testar comutatividade**
 e pelos testes automáticos: Translação·Translação, Escala·Escala, Rotação·Rotação e Escala(sx = sy)·Rotação
@@ -484,10 +500,17 @@ comutam; Translação·Rotação, Translação·Escala e Escala(sx ≠ sy)·Rota
    **amarelo** e a viewport em **ciano** (caixa *Mostrar janela e viewport*). Com os valores padrão, a janela
    [−10, 10] × [−10, 10] vai para [4, 28] × [2, 20]: a escala em x (1,2) é diferente da escala em y (0,9), então
    o polígono fica deformado (esticado em x, achatado em y). Com janela e viewport de mesma proporção não deforma.
+   O botão **Recortar na janela (Cohen-Sutherland)** recorta cada lado do polígono na janela do usuário e mostra só
+   os pedaços que ficam dentro; o log mostra o código de 4 bits de cada vértice e se o lado foi aceito, rejeitado
+   ou recortado (e para onde). Ex.: com a janela [−10, 0] × [−10, 0] o pentágono padrão tem 2 lados recortados e 3
+   rejeitados. Qualquer transformação volta ao polígono inteiro.
 6. Aba **Composta**: escreva uma sequência aplicada da esquerda para a direita, por exemplo
    `T(-2,-1) E(2,2) T(2,1)` (escala por 2 com ponto fixo (2,1)). Há exemplos prontos na caixa *Exemplo*.
    Comandos: `T(tx,ty)` `E(sx,sy)` `R(graus)` `EP(sx,sy,px,py)` `RP(graus,px,py)` `CisX(a)` `CisY(b)`
    `RefX` `RefY` `RefO` `RefYX` `RefYMX` `RefR(graus)` `JV(xmin,xmax,ymin,ymax,umin,umax,vmin,vmax)`.
+   - Aba **Arnold** (Gato de Arnold, slides 34–36): os pixels do desenho são levados para um quadrado N × N
+     centrado na origem (padrão N = 40, contorno cinza). **Aplicar Γ** faz um passo; **Aplicar até voltar** anima
+     os passos até o desenho reaparecer (o log mostra o período); **Voltar ao polígono** sai desse modo.
 7. Na tela fica **só o polígono transformado, em verde**: a forma antiga é apagada a cada transformação. O contorno
    magenta marca o **vértice 1** (mostra o giro e o espelhamento).
 8. **Desfazer** volta uma transformação; **Voltar ao original** zera tudo; **Tela cheia** mostra o frame buffer

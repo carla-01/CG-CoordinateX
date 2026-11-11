@@ -20,6 +20,7 @@ import javax.swing.JMenu;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
+import javax.swing.Timer;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
@@ -39,6 +40,8 @@ import lab3.desenho.DesenhoPoligono;
 import lab3.modelo.Matriz3;
 import lab3.modelo.Poligono;
 import lab3.modelo.Vertice;
+import lab3.recorte.CohenSutherland;
+import lab3.transformacao.GatoDeArnold;
 import lab3.transformacao.SequenciaTransformacoes;
 import lab3.transformacao.Transformacoes;
 
@@ -61,8 +64,10 @@ import lab3.transformacao.Transformacoes;
 //   Rotação      - R(θ), com ponto fixo opcional
 //   Reflexão     - eixo x, eixo y, origem, y = x, y = -x ou reta pela origem
 //   Cisalhamento - em x ou em y
-//   Janela       - janela do usuário (mundo) -> viewport, com os contornos na tela
+//   Janela       - janela do usuário (mundo) -> viewport, com os contornos na tela,
+//                  e recorte Cohen-Sutherland dos lados na janela
 //   Composta     - sequência escrita como texto, ex.: T(-2,-1) E(2,2) T(2,1)
+//   Arnold       - Gato de Arnold: Γ(x, y) = (x + y, x + 2y) mod 1 nos pixels do desenho
 //
 // As transformações se ACUMULAM: o polígono mostrado é sempre M · P, onde P é o
 // polígono original e M a matriz acumulada (a mais recente multiplica pela
@@ -80,12 +85,14 @@ public class TelaLab3 extends TelaLab {
     private static final int ZOOM_VISUALIZACAO = 8;
     private static final float ESCALA_FONTE = 1.25f; // letras 25% maiores nesta tela
     private static final int ALTURA_ABAS = 172;      // TelaLab usa 150
-    private static final int LARGURA_LOG = 260;      // TelaLab usa 320 (sobra espaço para as abas)
+    private static final int LARGURA_LOG = 230;      // TelaLab usa 320 (sobra espaço para as abas)
     private static final int COR_FUNDO = Cores.PRETO;
     private static final int COR_ATUAL = Cores.VERDE; // 00FF00
     private static final int COR_PREVIA = 0x009900; // lado sendo puxado
     private static final int COR_JANELA = Cores.AMARELO;
     private static final int COR_VIEWPORT = Cores.CIANO;
+    private static final int COR_QUADRADO = 0x555555; // contorno do quadrado do Gato de Arnold
+    private static final int ATRASO_GATO = 150;       // ms entre os passos de "Aplicar até voltar"
 
     private static final String TIPO_REGULAR = "Regular (n lados)";
     private static final String TIPO_IRREGULAR = "Irregular (pronto)";
@@ -162,6 +169,18 @@ public class TelaLab3 extends TelaLab {
 
     private JTextField campoSequencia;
 
+    // Gato de Arnold: pixels do desenho no quadrado N x N (coordenadas
+    // locais 0..N-1); null fora desse modo
+    private JTextField campoLadoGato;
+    private boolean[][] pixelsGato;
+    private int ladoGato;
+    private int iteracoesGato;
+    private Timer animacaoGato;
+
+    // Cohen-Sutherland: pedaços dos lados dentro da janela ({x1, y1, x2, y2});
+    // null fora desse modo
+    private List<double[]> segmentosRecorte;
+
     private PainelRaster painel;
     private FrameBuffer frameBuffer;
 
@@ -209,6 +228,7 @@ public class TelaLab3 extends TelaLab {
         abas.addTab("Cisalhamento", criarAbaCisalhamento());
         abas.addTab("Janela", criarAbaJanela());
         abas.addTab("Composta", criarAbaComposta());
+        abas.addTab("Arnold", null, criarAbaGato(), "Transformação do Gato de Arnold (slides 34 a 36)");
         abas.setSelectedIndex(ABA_PIXEL);
         abas.addChangeListener(new ChangeListener() {
             public void stateChanged(ChangeEvent e) {
@@ -401,10 +421,13 @@ public class TelaLab3 extends TelaLab {
         caixaJanela.setOpaque(false);
         aoClicar(caixaJanela, this::alternarJanela);
 
+        JButton recortar = Componentes.botao("Recortar na janela (Cohen-Sutherland)");
+        aoClicar(recortar, this::recortarNaJanela);
+
         return Componentes.painelAba(new JComponent[] {
                 linha("Janela do usuário:  xmin", campoXmin, "xmax", campoXmax, "ymin", campoYmin, "ymax", campoYmax),
                 linha("Viewport:  umin", campoUmin, "umax", campoUmax, "vmin", campoVmin, "vmax", campoVmax, aplicar),
-                linha(caixaJanela),
+                linha(caixaJanela, recortar),
                 linhaTexto("M = T(umin, vmin) · S((umax-umin)/(xmax-xmin), (vmax-vmin)/(ymax-ymin)) · T(-xmin, -ymin)") });
     }
 
@@ -434,6 +457,22 @@ public class TelaLab3 extends TelaLab {
                 linha("Sequência", campoSequencia, aplicar),
                 linhaTexto("T(tx,ty) E(sx,sy) R(graus) EP(sx,sy,px,py) RP(graus,px,py) CisX(a) CisY(b)   (esq. → dir.)"),
                 linhaTexto("RefX RefY RefO RefYX RefYMX RefR(graus) JV(xmin,xmax,ymin,ymax,umin,umax,vmin,vmax)") });
+    }
+
+    private JPanel criarAbaGato() {
+        campoLadoGato = Componentes.campo("40", 4);
+        JButton passo = Componentes.botao("Aplicar Γ");
+        aoClicar(passo, this::passoGato);
+        JButton ateVoltar = Componentes.botao("Aplicar até voltar");
+        aoClicar(ateVoltar, this::animarGato);
+        JButton voltar = Componentes.botao("Voltar ao polígono");
+        aoClicar(voltar, this::voltarAoPoligono);
+
+        return Componentes.painelAba(new JComponent[] {
+                linha("Lado N do quadrado", campoLadoGato, passo, ateVoltar, voltar),
+                linhaTexto("Γ(x, y) = (x + y, x + 2y) mod 1      M = [1 1; 1 2] = CisY(1) · CisX(1),  det M = 1"),
+                linhaTexto("Cada pixel (i, j) do quadrado N x N vai para ((i + j) mod N, (i + 2j) mod N)."),
+                linhaTexto("Depois de um número de passos (o período), o desenho volta ao original.") });
     }
 
     // Texto vira rótulo; componente entra como está
@@ -556,6 +595,7 @@ public class TelaLab3 extends TelaLab {
 
     // Apaga tudo, como o Limpar do Lab 2 (inclusive o polígono)
     private void limpar() {
+        sairDosModos();
         pixelsLivres.clear();
         pontosDesenho.clear();
         previa = null;
@@ -755,6 +795,7 @@ public class TelaLab3 extends TelaLab {
             p = p.centralizadoNaOrigem();
             nome = nome + " (levado para a origem)";
         }
+        sairDosModos();
         pontosDesenho.clear();
         previa = null;
         original = p;
@@ -801,6 +842,7 @@ public class TelaLab3 extends TelaLab {
                 novo = lerVertices(campoVertices.getText());
                 nome = "Polígono irregular digitado";
             }
+            sairDosModos();
             original = novo.centralizadoNaOrigem();
             atual = original;
             acumulada = Matriz3.identidade();
@@ -995,6 +1037,203 @@ public class TelaLab3 extends TelaLab {
         redesenhar();
     }
 
+    // ===== Recorte Cohen-Sutherland (slides 37 a 46) =====
+
+    // Recorta cada lado do polígono atual na janela do usuário e mostra só
+    // os pedaços que ficam dentro dela
+    private void recortarNaJanela() {
+        if (temPoligono() == false) {
+            return;
+        }
+        try {
+            lerJanela();
+        } catch (IllegalArgumentException erro) {
+            mostrarErro("Janela inválida", erro.getMessage());
+            return;
+        }
+        Vertice j0 = contornoJanela.get(0);
+        Vertice j2 = contornoJanela.get(2);
+        CohenSutherland recorte = new CohenSutherland(j0.getX(), j2.getX(), j0.getY(), j2.getY());
+
+        sairDosModos();
+        segmentosRecorte = new ArrayList<double[]>();
+        log("--- Recorte Cohen-Sutherland na janela [" + fmt(j0.getX()) + ", " + fmt(j2.getX()) + "] x ["
+                + fmt(j0.getY()) + ", " + fmt(j2.getY()) + "]   (bits: acima abaixo direita esquerda)");
+
+        int n = atual.getQuantidade();
+        int aceitos = 0;
+        int rejeitados = 0;
+        int recortados = 0;
+        for (int i = 0; i < n; i++) {
+            Vertice a = atual.get(i);
+            Vertice b = atual.get((i + 1) % n);
+            int ca = recorte.codigo(a.getX(), a.getY());
+            int cb = recorte.codigo(b.getX(), b.getY());
+            double[] s = recorte.recortar(a.getX(), a.getY(), b.getX(), b.getY());
+
+            String resultado;
+            if ((ca | cb) == 0) {
+                resultado = "aceito (trivial)";
+                aceitos++;
+            } else if ((ca & cb) != 0) {
+                resultado = "rejeitado (trivial: AND = " + CohenSutherland.texto(ca & cb) + ")";
+                rejeitados++;
+            } else if (s == null) {
+                resultado = "rejeitado (depois de subdividir)";
+                rejeitados++;
+            } else {
+                resultado = "recortado para (" + fmt(s[0]) + ", " + fmt(s[1]) + ") - (" + fmt(s[2]) + ", "
+                        + fmt(s[3]) + ")";
+                recortados++;
+            }
+            if (s != null) {
+                segmentosRecorte.add(s);
+            }
+            log("lado " + (i + 1) + ": " + a + " " + CohenSutherland.texto(ca) + "  ->  " + b + " "
+                    + CohenSutherland.texto(cb) + "   " + resultado);
+        }
+
+        caixaJanela.setSelected(true);
+        redesenhar();
+        status.setMensagem("Cohen-Sutherland: " + aceitos + " lado(s) aceito(s), " + recortados + " recortado(s), "
+                + rejeitados + " rejeitado(s). Qualquer transformação volta ao polígono inteiro.");
+    }
+
+    // ===== Gato de Arnold (slides 34 a 36) =====
+
+    // Um passo de Γ nos pixels do desenho
+    private void passoGato() {
+        if (animacaoGato != null) {
+            return; // animação em andamento
+        }
+        if (prepararGato()) {
+            avancarGato();
+        }
+    }
+
+    // Aplica Γ passo a passo (animado) até o desenho voltar ao original
+    private void animarGato() {
+        if (animacaoGato != null || prepararGato() == false) {
+            return;
+        }
+        final int periodo = GatoDeArnold.periodo(ladoGato);
+        log("--- Aplicando Γ até voltar (período " + periodo + ")");
+        animacaoGato = new Timer(ATRASO_GATO, new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                avancarGato();
+                if (iteracoesGato % periodo == 0) {
+                    pararAnimacaoGato();
+                }
+            }
+        });
+        animacaoGato.start();
+    }
+
+    // Na primeira vez (ou se N mudou), pega os pixels do polígono atual e
+    // leva cada um para o quadrado N x N centrado na origem
+    private boolean prepararGato() {
+        if (temPoligono() == false) {
+            return false;
+        }
+        int n;
+        try {
+            n = Componentes.lerInteiro(campoLadoGato);
+        } catch (NumberFormatException erro) {
+            mostrarErro("Lado inválido", "O lado N deve ser um número inteiro.");
+            return false;
+        }
+        if (n < 2 || n > 4096) {
+            mostrarErro("Lado inválido", "O lado N deve estar entre 2 e 4096.");
+            return false;
+        }
+        if (pixelsGato != null && ladoGato == n) {
+            return true;
+        }
+
+        segmentosRecorte = null;
+        ladoGato = n;
+        iteracoesGato = 0;
+        pixelsGato = new boolean[n][n];
+        final int x0 = inicioQuadrado();
+        final int y0 = inicioQuadrado();
+        final int lado = n;
+        desenho.desenhar(new Raster() {
+            public void setPixel(int x, int y, int cor) {
+                // (x, y) mod N: o ponto cai dentro do quadrado (como o mod 1)
+                pixelsGato[GatoDeArnold.mod(x - x0, lado)][GatoDeArnold.mod(y - y0, lado)] = true;
+            }
+        }, atual, COR_ATUAL);
+
+        log("--- Gato de Arnold: quadrado " + n + " x " + n + " de (" + x0 + ", " + y0 + ") a (" + (x0 + n - 1)
+                + ", " + (y0 + n - 1) + "), " + contarGato() + " pixels, período " + GatoDeArnold.periodo(n));
+        logMatriz("M = CisY(1) · CisX(1)", GatoDeArnold.matrizFatorada());
+        return true;
+    }
+
+    private void avancarGato() {
+        int n = ladoGato;
+        boolean[][] novo = new boolean[n][n];
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                if (pixelsGato[i][j]) {
+                    int[] p = GatoDeArnold.aplicarPixel(i, j, n);
+                    novo[p[0]][p[1]] = true;
+                }
+            }
+        }
+        pixelsGato = novo;
+        iteracoesGato++;
+        redesenhar();
+
+        int periodo = GatoDeArnold.periodo(n);
+        String texto = "Gato de Arnold: Γ aplicada " + iteracoesGato + " vez(es), período " + periodo;
+        if (iteracoesGato % periodo == 0) {
+            texto += "  ->  o desenho voltou ao original!";
+        }
+        log(texto);
+        status.setMensagem(texto);
+    }
+
+    // Canto inferior esquerdo do quadrado N x N centrado na origem
+    private int inicioQuadrado() {
+        return -(ladoGato / 2);
+    }
+
+    private int contarGato() {
+        int total = 0;
+        for (int i = 0; i < ladoGato; i++) {
+            for (int j = 0; j < ladoGato; j++) {
+                if (pixelsGato[i][j]) {
+                    total++;
+                }
+            }
+        }
+        return total;
+    }
+
+    private void pararAnimacaoGato() {
+        if (animacaoGato != null) {
+            animacaoGato.stop();
+            animacaoGato = null;
+        }
+    }
+
+    private void voltarAoPoligono() {
+        sairDosModos();
+        redesenhar();
+        log("--- Voltou ao polígono");
+        status.setMensagem("Polígono de volta (sem o Gato de Arnold e sem o recorte).");
+    }
+
+    // Sai do Gato de Arnold e do recorte: volta a mostrar o polígono inteiro
+    private void sairDosModos() {
+        pararAnimacaoGato();
+        pixelsGato = null;
+        iteracoesGato = 0;
+        segmentosRecorte = null;
+    }
+
     private void aplicarSequencia() {
         if (temPoligono() == false) {
             return;
@@ -1017,6 +1256,7 @@ public class TelaLab3 extends TelaLab {
         if (temPoligono() == false) {
             return;
         }
+        sairDosModos();
         historico.add(acumulada);
         acumulada = m.multiplicar(acumulada);
         atual = original.transformar(acumulada);
@@ -1035,6 +1275,7 @@ public class TelaLab3 extends TelaLab {
             status.setMensagem("Nada para desfazer.");
             return;
         }
+        sairDosModos();
         acumulada = historico.remove(historico.size() - 1);
         atual = original.transformar(acumulada);
         log("--- Desfeito (voltou uma transformação)");
@@ -1048,6 +1289,7 @@ public class TelaLab3 extends TelaLab {
             status.setMensagem("Nenhum polígono na tela.");
             return;
         }
+        sairDosModos();
         acumulada = Matriz3.identidade();
         historico.clear();
         atual = original;
@@ -1108,7 +1350,8 @@ public class TelaLab3 extends TelaLab {
         PlanoCartesiano plano = plano();
 
         // contornos da janela e da viewport ficam por baixo dos polígonos
-        if (caixaJanela != null && caixaJanela.isSelected() && contornoJanela != null) {
+        // (escondidos no Gato de Arnold, que tem o próprio quadrado)
+        if (caixaJanela != null && caixaJanela.isSelected() && contornoJanela != null && pixelsGato == null) {
             desenho.desenhar(new RasterTela(plano), contornoJanela, COR_JANELA);
             desenho.desenhar(new RasterTela(plano), contornoViewport, COR_VIEWPORT);
         }
@@ -1120,7 +1363,29 @@ public class TelaLab3 extends TelaLab {
 
         RasterTela raster = new RasterTela(plano);
         if (atual != null) {
-            desenho.desenhar(raster, atual, COR_ATUAL);
+            if (segmentosRecorte != null) {
+                // só os pedaços dos lados que ficaram dentro da janela
+                for (int i = 0; i < segmentosRecorte.size(); i++) {
+                    double[] s = segmentosRecorte.get(i);
+                    reta.desenhar(raster, DesenhoPoligono.arredondar(s[0]), DesenhoPoligono.arredondar(s[1]),
+                            DesenhoPoligono.arredondar(s[2]), DesenhoPoligono.arredondar(s[3]), COR_ATUAL);
+                }
+            } else if (pixelsGato != null) {
+                // pixels do Gato de Arnold dentro do quadrado (contorno por fora)
+                int x0 = inicioQuadrado();
+                int y0 = inicioQuadrado();
+                desenho.desenhar(new RasterTela(plano),
+                        Poligono.retangulo(x0 - 1, x0 + ladoGato, y0 - 1, y0 + ladoGato), COR_QUADRADO);
+                for (int i = 0; i < ladoGato; i++) {
+                    for (int j = 0; j < ladoGato; j++) {
+                        if (pixelsGato[i][j]) {
+                            raster.setPixel(x0 + i, y0 + j, COR_ATUAL);
+                        }
+                    }
+                }
+            } else {
+                desenho.desenhar(raster, atual, COR_ATUAL);
+            }
         }
 
         desenharEmAndamento(plano);
@@ -1129,7 +1394,7 @@ public class TelaLab3 extends TelaLab {
         Pixel marcar = null;
         if (pontosDesenho.isEmpty() == false) {
             marcar = pontosDesenho.get(0);
-        } else if (atual != null) {
+        } else if (atual != null && pixelsGato == null && segmentosRecorte == null) {
             marcar = DesenhoPoligono.pixelDoVertice(atual.get(0));
         }
         if (marcar != null) {
