@@ -5,6 +5,7 @@ import javax.swing.SwingUtilities;
 import frontend.labs.TelaLab1;
 import frontend.labs.TelaLab1Extra;
 import frontend.labs.TelaLab2;
+import frontend.labs.TelaLab3;
 
 public class App {
 
@@ -19,6 +20,7 @@ public class App {
                 janela.adicionarLab(new TelaLab1(janela));
                 janela.adicionarLab(new TelaLab1Extra(janela));
                 janela.adicionarLab(new TelaLab2(janela));
+                janela.adicionarLab(new TelaLab3(janela));
                 janela.setVisible(true);
             }
         });

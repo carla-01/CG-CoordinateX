@@ -10,6 +10,7 @@ Repositório dos laboratórios da disciplina de **Computação Gráfica**.
 | **Lab 1** | Transformação de coordenadas: Mundo → NDC → Dispositivo (e o caminho inverso) | [`Lab 1/`](Lab%201/) |
 | **Lab 1 – Extra** | Tabela de cores (LUT) de 24 bits para pixels de 12 bits | [`Lab 1 - Extra/`](Lab%201%20-%20Extra/) |
 | **Lab 2** | Rasterização de retas (DDA, Ponto Médio/Bresenham) e circunferências (polinomial, trigonométrico, ponto médio) | [`Lab 2/`](Lab%202/) |
+| **Lab 3** | Transformações geométricas 2D (translação, escala, rotação, reflexão, cisalhamento e compostas) aplicadas a um polígono desenhado com o Ponto Médio | [`Lab 3/`](Lab%203/) |
 
 Todos os labs são abertos por uma **interface gráfica única** (`frontend.App`), com uma tela inicial que tem um botão para cada lab.
 
@@ -24,8 +25,9 @@ Todos os labs são abertos por uma **interface gráfica única** (`frontend.App`
 5. [Lab 1 – Transformação de coordenadas](#lab-1--transformação-de-coordenadas)
 6. [Lab 1 – Extra: Tabela de cores](#lab-1--extra-tabela-de-cores)
 7. [Lab 2 – Retas e circunferências](#lab-2--retas-e-circunferências)
-8. [Como adicionar um lab novo](#como-adicionar-um-lab-novo)
-9. [Problemas comuns](#problemas-comuns)
+8. [Lab 3 – Transformações geométricas](#lab-3--transformações-geométricas)
+9. [Como adicionar um lab novo](#como-adicionar-um-lab-novo)
+10. [Problemas comuns](#problemas-comuns)
 
 ---
 
@@ -59,15 +61,16 @@ O projeto é um Maven **multi-módulo**. A regra principal: **os labs só têm o
                  │           frontend           │  interface gráfica (Swing)
                  │  App, telas de cada lab,     │  único ponto de entrada
                  │  componentes compartilhados  │
-                 └───┬──────────┬───────────┬───┘
-                     │          │           │
-              ┌──────▼──┐ ┌─────▼──────┐ ┌──▼──────┐
-              │  Lab 1  │ │Lab 1 Extra │ │  Lab 2  │   só algoritmos dos slides
-              └──────┬──┘ └────────────┘ └──┬──────┘   (sem Swing)
-                     │                      │
-                 ┌───▼──────────────────────▼───┐
-                 │             core             │  base comum: Ponto, Pixel,
-                 └──────────────────────────────┘  JanelaMundo, FrameBuffer
+                 └───┬──────────┬───────────┬────────────┬───┘
+                     │          │           │            │
+              ┌──────▼───┐ ┌────▼───────┐ ┌─▼───────┐ ┌──▼──────┐
+              │  Lab 1   │ │Lab 1 Extra │ │  Lab 2  │ │  Lab 3  │   só algoritmos dos slides
+              └──────┬───┘ └────────────┘ └──┬──────┘ └──┬──────┘   (sem Swing)
+                     │                       │   ▲       │
+                     │                       │   └───────┘  (o Lab 3 reaproveita a reta do Lab 2)
+                 ┌───▼───────────────────────▼───────────▼┐
+                 │                 core                   │  base comum: Ponto, Pixel,
+                 └────────────────────────────────────────┘  JanelaMundo, FrameBuffer
 ```
 
 ```
@@ -111,6 +114,19 @@ CG-CoordinateX/
 │           ├── CircunferenciaTrigonometrica.java  # x = r cos θ, y = r sin θ
 │           └── CircunferenciaPontoMedio.java      # Ponto Médio / Bresenham
 │
+├── Lab 3/                                  # transformações geométricas 2D
+│   ├── docs/Lab3_Estudo_Transformacoes.pdf # PDF de estudo: dedução de todas as fórmulas
+│   └── src/main/java/lab3/
+│       ├── modelo/
+│       │   ├── Matriz3.java                # matriz 3x3 (coordenadas homogêneas)
+│       │   ├── Vertice.java                # vértice com coordenadas reais
+│       │   └── Poligono.java               # lista de vértices; regular, irregular, retângulo, centralizar
+│       ├── transformacao/
+│       │   ├── Transformacoes.java         # as matrizes da aula G5 (T, S, R, reflexões, cisalhamento, compostas)
+│       │   └── SequenciaTransformacoes.java# lê "T(-2,-1) E(2,2) T(2,1)" e calcula a matriz composta
+│       └── desenho/
+│           └── DesenhoPoligono.java        # lados do polígono com o Ponto Médio (RetaPontoMedio, Lab 2)
+│
 └── frontend/                               # interface gráfica
     └── src/main/java/frontend/
         ├── App.java                        # main: registra os labs
@@ -128,7 +144,8 @@ CG-CoordinateX/
         └── labs/
             ├── TelaLab1.java
             ├── TelaLab1Extra.java
-            └── TelaLab2.java
+            ├── TelaLab2.java
+            └── TelaLab3.java
 ```
 
 **Por que assim?**
@@ -157,7 +174,7 @@ java -jar frontend/target/coordinatex.jar
 
 > No Windows (PowerShell/CMD) os comandos são os mesmos.
 
-**Testes automáticos** (JUnit 5): `mvn test`. Conferem o plano cartesiano (`core`) e, no Lab 2, se retas e circunferências com coordenadas **positivas e negativas** caem nos **octantes certos**.
+**Testes automáticos** (JUnit 5): `mvn test`. Conferem o plano cartesiano (`core`) e, no Lab 2, se retas e circunferências com coordenadas **positivas e negativas** caem nos **octantes certos**. No Lab 3, conferem as matrizes (inclusive os exemplos dos slides e a tabela de comutatividade), o polígono centrado na origem, a leitura de sequências compostas e o desenho do contorno.
 
 ### Opção B — IntelliJ IDEA
 
@@ -366,7 +383,7 @@ Todos calculam só 1/8 da circunferência (de 90° a 45°) e usam a **simetria d
 | Algoritmo | Classe | Ideia |
 |---|---|---|
 | **Polinomial** | `CircunferenciaPolinomial` | Igual ao slide: `x = 0`, `xend = r/√2`; enquanto `x <= xend`: `y = sqrt(r² − x²)`, `Círculo_ponto(round x, round y)`, `x += 1`. |
-| **Trigonométrico** | `CircunferenciaTrigonometrica` | Igual ao slide: `θ = 0`, `θend = π/4`; enquanto `θ <= θend`: `x = r cos θ`, `y = r sen θ`, `Círculo_ponto(round x, round y)`, `θ += i`. O passo `i` divide `π/4` em partes iguais de no máximo `1/r` (≈ 1 pixel), para o último ponto cair em 45°. |
+| **Trigonométrico** | `CircunferenciaTrigonometrica` | Igual ao slide: `θ = 0`, `θend = π/4`; enquanto `θ <= θend`: `x = r cos θ`, `y = r sen θ`, `Círculo_ponto(round x, round y)`, `θ += i`. Como no slide ("i = define o passo"), o passo `i` é escolhido na tela, em graus (padrão **5°**). Passo maior = menos pontos calculados, mas a circunferência pode ficar com buracos. Se `i` não divide 45°, o ponto de 45° é desenhado no fim. Com **0** o passo é automático: divide `π/4` em partes iguais de no máximo `1/r` (≈ 1 pixel), sem buracos. |
 | **Ponto Médio** | `CircunferenciaPontoMedio` | Começa em `(0, r)`, `d = 1 − r`; se `d < 0` escolhe **E** (`d += 2x + 3`), senão **SE** (`d += 2(x − y) + 5`, `y−−`). |
 
 ### Passo a passo na interface
@@ -375,21 +392,118 @@ Todos calculam só 1/8 da circunferência (de 90° a 45°) e usam a **simetria d
 2. Escolha a ferramenta pela aba. A tela imita o display: fundo preto sem grade e os pixels são acesos sempre na cor **`00FF00`**. Com o **Plano cartesiano** ligado aparecem os eixos e os octantes (desligue para ver o display totalmente limpo, em coordenadas do dispositivo):
    - **Pixel** — clique numa célula para **ligar/desligar** um pixel.
    - **Reta** — escolha o algoritmo; clique em **P1** e depois em **P2**, ou digite `x1 y1 x2 y2` e clique em **Desenhar**. Enquanto escolhe o P2, a barra de status mostra `dx`, `dy`, o declive `m` e o **octante**. O botão **Testar os 8 octantes** desenha, a partir da origem, uma reta em cada octante (x e y positivos e negativos) e escreve no log se cada uma caiu no octante certo (`OK`/`ERRO`).
-   - **Circunferência** — escolha o algoritmo; clique no **centro** e depois num ponto da borda (define o raio), ou digite `xc yc raio` e clique em **Desenhar**.
+   - **Circunferência** — escolha o algoritmo (no **Trigonométrico**, o campo **passo θ** define o `i`, em graus; 0 = automático); clique no **centro** e depois num ponto da borda (define o raio), ou digite `xc yc raio` e clique em **Desenhar**.
 3. O **log** mostra cada `setPixel` de cada desenho, na ordem em que o algoritmo chamou. Serve para conferir com as tabelas dos slides.
 4. **Limpar** apaga a tela; **Tela cheia** mostra o frame buffer no monitor sem zoom (ESC volta).
 
 ---
 
+## Lab 3 – Transformações geométricas
+
+### Objetivo
+
+Implementar **todas as transformações geométricas 2D da aula G5** e aplicá-las a um **polígono**
+(regular ou irregular) que começa **na origem do plano cartesiano**. Os lados do polígono são
+desenhados com o **algoritmo do Ponto Médio** da aula G3.
+
+O Lab 3 é **independente dos outros**: na tela inicial ele tem o **próprio botão** e abre a **própria
+tela** (`TelaLab3`), como o Lab 1 e o Lab 2. Só reaproveita código por dependência no `pom.xml`: do
+`core` (`Raster`, `Pixel`) e do Lab 2 (`RetaPontoMedio`, que desenha cada lado do polígono).
+
+> O PDF [`Lab 3/docs/Lab3_Estudo_Transformacoes.pdf`](Lab%203/docs/Lab3_Estudo_Transformacoes.pdf) tem a
+> dedução de cada fórmula usada aqui, exemplos numéricos e exercícios.
+
+### Convenções
+
+- O ponto é um vetor **coluna** em coordenadas homogêneas, `P = (x, y, 1)ᵀ`, e a transformação é `P' = M · P`.
+- Coordenadas do plano cartesiano: origem **sempre no centro** da tela, **y para cima** (as transformações são em
+  torno da origem). A caixa **Plano cartesiano** só mostra ou esconde os eixos e octantes. Ângulo positivo = **anti-horário**.
+- Os vértices são **números reais**. Só na hora de desenhar eles são **arredondados** (para longe do zero),
+  então o erro de arredondamento **não se acumula** entre as transformações.
+- A transformação mais recente multiplica **pela esquerda**: `M_acumulada = M_nova · M_acumulada`.
+  O polígono mostrado é sempre `M_acumulada · P_original`.
+
+### As matrizes (`lab3.transformacao.Transformacoes`)
+
+| Transformação | Método | Matriz 3 × 3 (linhas separadas por `;`) | Slide |
+|---|---|---|---|
+| Translação | `translacao(tx, ty)` | `[1 0 tx; 0 1 ty; 0 0 1]` | 6 |
+| Escala | `escala(sx, sy)` | `[sx 0 0; 0 sy 0; 0 0 1]` | 7 |
+| Rotação (origem) | `rotacao(θ)` | `[cos θ  −sen θ  0; sen θ  cos θ  0; 0 0 1]` | 8–11 |
+| Reflexão em x | `reflexaoEixoX()` | `[1 0 0; 0 −1 0; 0 0 1]` | 18 |
+| Reflexão em y | `reflexaoEixoY()` | `[−1 0 0; 0 1 0; 0 0 1]` | 18 |
+| Reflexão na origem | `reflexaoOrigem()` | `[−1 0 0; 0 −1 0; 0 0 1]` | 19 |
+| Reflexão em y = x | `reflexaoRetaYigualX()` | `[0 1 0; 1 0 0; 0 0 1]` | 19 (a "?") |
+| Reflexão em y = −x | `reflexaoRetaYigualMenosX()` | `[0 −1 0; −1 0 0; 0 0 1]` | 19 (a "?") |
+| Reflexão numa reta pela origem | `reflexaoEmReta(θ)` | `[cos 2θ  sen 2θ  0; sen 2θ  −cos 2θ  0; 0 0 1]` | extra |
+| Cisalhamento em x | `cisalhamentoX(a)` | `[1 a 0; 0 1 0; 0 0 1]` | 20 |
+| Cisalhamento em y | `cisalhamentoY(b)` | `[1 0 0; b 1 0; 0 0 1]` | 20 |
+| Escala com ponto fixo | `escalaComPontoFixo(sx, sy, px, py)` | `T(p) · S · T(−p)` | 22–25 |
+| Rotação com ponto fixo | `rotacaoComPontoFixo(θ, px, py)` | `T(p) · R(θ) · T(−p)` | 26–27 |
+| Composição qualquer | `compor(M1, M2, ...)` | `Mn · ... · M2 · M1` | 21 |
+| Janela → porta de visão | `janelaViewport(...)` | `T(umin,vmin) · S · T(−xmin,−ymin)` | 29–33 |
+
+A comutatividade da composição (slide 28) é conferida pelo botão **Testar comutatividade**
+e pelos testes automáticos: Translação·Translação, Escala·Escala, Rotação·Rotação e Escala(sx = sy)·Rotação
+comutam; Translação·Rotação, Translação·Escala e Escala(sx ≠ sy)·Rotação **não** comutam.
+
+### Como o polígono é desenhado
+
+1. `Poligono` guarda os vértices reais (regular: vértice `k` em `90° + k·360°/n`; irregular: pentágono pronto ou
+   vértices digitados). Ele sempre é **centrado na origem** (a média dos vértices vai para `(0, 0)`).
+2. Cada transformação multiplica **só os vértices** (`Poligono.transformar`). Como as transformações afins levam
+   retas em retas, transformar os vértices e ligá-los é o mesmo que transformar o polígono inteiro.
+3. `DesenhoPoligono` arredonda os vértices e liga um ao seguinte (e o último ao primeiro) com `RetaPontoMedio`
+   (Ponto Médio, com simetria dos 8 octantes, do Lab 2).
+
+### Passo a passo na interface
+
+1. Na tela inicial, clique em **Lab 3 – Transformações Geométricas**. A tela é igual à do Lab 2: display **preto**,
+   sem grade, 64 × 48 (**ndh/ndv + Aplicar** mudam a resolução), e o **Plano cartesiano** só aparece se a caixa for
+   marcada. **Limpar** apaga tudo (inclusive o polígono).
+2. Aba **Pixel** (continuação do Lab 2), escolhendo a *Ferramenta*:
+   - **Pixel (liga/desliga)** — clique numa célula para ligar/desligar um pixel, como no Lab 2;
+   - **Polígono** — clique em cada vértice; o próximo lado **acompanha o mouse**. Feche clicando no vértice 1
+     (marcado) ou em **Fechar polígono**;
+   - **Retângulo** — clique num canto, puxe e clique no canto oposto;
+   - **Polígono regular** — clique no centro, puxe até a borda (define o raio e o vértice 1) e clique de novo
+     (`lados` no campo ao lado).
+
+   O desenho feito aqui vira o polígono das transformações e **fica onde foi desenhado**. **Cancelar** desiste do
+   desenho em andamento.
+3. Aba **Polígono**: escolha *Regular (n lados)* (`lados`, `raio`), *Irregular (pronto)* ou *Irregular (digitar
+   vértices)* (`x,y; x,y; ...`, com ponto decimal) e clique em **Criar polígono**. O padrão é o pentágono
+   *irregular* `(-8,-7) (6,-8) (9,2) (1,9) (-8,4)`, de propósito sem simetria, para a rotação e a reflexão aparecerem.
+4. Use as abas **Translação**, **Escala**, **Rotação** (as duas com *ponto fixo* opcional), **Reflexão** (eixo x,
+   eixo y, origem, y = x, y = −x ou reta pela origem com ângulo θ) e **Cisalhamento** (em x ou em y). Cada
+   **Aplicar** transforma o polígono **atual** — as transformações se acumulam.
+5. Aba **Janela** (janela do usuário → viewport, slides 29–33): digite a **janela do usuário** no mundo
+   (`xmin`, `xmax`, `ymin`, `ymax`) e a **viewport** (`umin`, `umax`, `vmin`, `vmax`) e clique em **Aplicar**: o que está
+   dentro da janela é levado para a viewport pela matriz `T(umin,vmin) · S · T(−xmin,−ymin)`. A janela aparece em
+   **amarelo** e a viewport em **ciano** (caixa *Mostrar janela e viewport*). Com os valores padrão, a janela
+   [−10, 10] × [−10, 10] vai para [4, 28] × [2, 20]: a escala em x (1,2) é diferente da escala em y (0,9), então
+   o polígono fica deformado (esticado em x, achatado em y). Com janela e viewport de mesma proporção não deforma.
+6. Aba **Composta**: escreva uma sequência aplicada da esquerda para a direita, por exemplo
+   `T(-2,-1) E(2,2) T(2,1)` (escala por 2 com ponto fixo (2,1)). Há exemplos prontos na caixa *Exemplo*.
+   Comandos: `T(tx,ty)` `E(sx,sy)` `R(graus)` `EP(sx,sy,px,py)` `RP(graus,px,py)` `CisX(a)` `CisY(b)`
+   `RefX` `RefY` `RefO` `RefYX` `RefYMX` `RefR(graus)` `JV(xmin,xmax,ymin,ymax,umin,umax,vmin,vmax)`.
+7. Na tela fica **só o polígono transformado, em verde**: a forma antiga é apagada a cada transformação. O contorno
+   magenta marca o **vértice 1** (mostra o giro e o espelhamento).
+8. **Desfazer** volta uma transformação; **Voltar ao original** zera tudo; **Tela cheia** mostra o frame buffer
+   (ESC volta).
+9. O **log** mostra, a cada transformação, a matriz `M`, a matriz acumulada e os vértices (reais e o pixel de cada um).
+
+---
+
 ## Como adicionar um lab novo
 
-Exemplo para o **Lab 3**:
+Exemplo para o **Lab 4**:
 
-1. **Algoritmos** — crie a pasta `Lab 3/` com `src/main/java/lab3/...` e um `pom.xml` igual ao do `Lab 2` (troque o `artifactId` para `lab3`). Use só o `core` (`Raster`, `FrameBuffer`, `Pixel`...), sem Swing.
-2. **Módulo** — no `pom.xml` da raiz, adicione `<module>Lab 3</module>` (antes do `frontend`).
-3. **Dependência** — no `frontend/pom.xml`, adicione a dependência `lab3`.
-4. **Tela** — crie `frontend/labs/TelaLab3.java` estendendo `TelaLab`: monte a barra de opções (`Componentes.linhaEntrada`), a área de desenho (normalmente um `PainelRaster`) e as abas (`criarAbas()`, uma aba por operação, com o conteúdo feito por `Componentes.painelAba`), e chame `montar(...)` no fim do construtor. Use `log(...)` para escrever no log.
-5. **Registro** — no `frontend/App.java`, adicione `janela.adicionarLab(new TelaLab3(janela));`. O botão aparece sozinho na tela inicial.
+1. **Algoritmos** — crie a pasta `Lab 4/` com `src/main/java/lab4/...` e um `pom.xml` igual ao do `Lab 2` (troque o `artifactId` para `lab4`). Use só o `core` (`Raster`, `FrameBuffer`, `Pixel`...), sem Swing.
+2. **Módulo** — no `pom.xml` da raiz, adicione `<module>Lab 4</module>` (antes do `frontend`).
+3. **Dependência** — no `frontend/pom.xml`, adicione a dependência `lab4`.
+4. **Tela** — crie `frontend/labs/TelaLab4.java` estendendo `TelaLab`: monte a barra de opções (`Componentes.linhaEntrada`), a área de desenho (normalmente um `PainelRaster`) e as abas (`criarAbas()`, uma aba por operação, com o conteúdo feito por `Componentes.painelAba`), e chame `montar(...)` no fim do construtor. Use `log(...)` para escrever no log.
+5. **Registro** — no `frontend/App.java`, adicione `janela.adicionarLab(new TelaLab4(janela));`. O botão aparece sozinho na tela inicial.
 
 ---
 
