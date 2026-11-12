@@ -1,6 +1,7 @@
 package frontend;
 
 import modelo.Poligono;
+import modelo.Ponto;
 import transformacoes.Matriz;
 import transformacoes.Operacao;
 import transformacoes.Transformacoes2D;
@@ -78,6 +79,7 @@ public class TelaLab3 extends JFrame {
     private JComboBox<String> comboTipo;
     private JTextField campoLados;
     private JTextField campoTamanho;
+    private JTextField campoCentroX, campoCentroY;
 
     // ---- abas ----
     private JTabbedPane abas;
@@ -193,14 +195,26 @@ public class TelaLab3 extends JFrame {
         // No irregular o número de lados é fixo
         comboTipo.addActionListener(e -> campoLados.setEnabled(comboTipo.getSelectedIndex() == 0));
 
+        // Centro onde o objeto nasce: fora da origem, para que as
+        // reflexões (ex.: no eixo y) fiquem visíveis
+        campoCentroX = criarCampo("100");
+        campoCentroY = criarCampo("80");
+
         JButton gerar = criarBotao("Gerar Objeto");
         gerar.addActionListener(e -> gerarObjeto());
+        JButton aoCentro = criarBotao("Levar ao Centro (0, 0)");
+        aoCentro.addActionListener(e -> levarAoCentro());
+
+        JPanel botoes = new JPanel(new GridLayout(0, 1, 0, 4));
+        botoes.setBackground(FACE);
+        botoes.add(gerar);
+        botoes.add(aoCentro);
 
         JPanel painel = formulario(
-                new String[] { "Tipo:", "Nº de lados:", "Tamanho (raio):" },
-                new JComponent[] { comboTipo, campoLados, campoTamanho },
-                gerar);
-        painel.setBorder(criarGrupo("Objeto 2D (centro na origem)"));
+                new String[] { "Tipo:", "Nº de lados:", "Tamanho (raio):", "Centro x:", "Centro y:" },
+                new JComponent[] { comboTipo, campoLados, campoTamanho, campoCentroX, campoCentroY },
+                botoes);
+        painel.setBorder(criarGrupo("Objeto 2D"));
         return painel;
     }
 
@@ -477,12 +491,18 @@ public class TelaLab3 extends JFrame {
     //  AÇÕES
     // =====================================================================
 
-    // Cria o polígono NA ORIGEM
+    // Cria o polígono na origem e depois o translada para o centro escolhido
     private void gerarObjeto() {
         try {
             double tamanho = lerNumero(campoTamanho);
+            double cx = lerNumero(campoCentroX);
+            double cy = lerNumero(campoCentroY);
             if (tamanho <= 0 || tamanho > 240) {
                 erro("O tamanho deve estar entre 0 e 240 (o mundo vai de -250 a 250).");
+                return;
+            }
+            if (Math.abs(cx) > 250 || Math.abs(cy) > 250) {
+                erro("O centro deve estar entre -250 e 250 (limites do mundo).");
                 return;
             }
 
@@ -499,17 +519,33 @@ public class TelaLab3 extends JFrame {
                 original = Poligono.irregular(tamanho);
                 descricao = "Polígono irregular (bandeira) de 7 lados, tamanho " + f(tamanho);
             }
+            // Desloca do (0, 0) para o centro escolhido
+            original = original.transformar(Transformacoes2D.translacao(cx, cy));
             atual = original;
 
             contadorOperacoes = 0;
             textoHistorico.setText("Objeto gerado: " + descricao + "\n"
-                    + "Centro na origem (0, 0).\n\nVértices:\n" + indentar(atual.listarVertices())
-                    + linha());
+                    + "Centro em (" + f(cx) + ", " + f(cy) + ").\n\nVértices:\n"
+                    + indentar(atual.listarVertices()) + linha());
             atualizarTudo();
-            statusLabel.setText(" Objeto gerado na origem: " + descricao);
+            statusLabel.setText(" Objeto gerado com centro em (" + f(cx) + ", " + f(cy) + "): " + descricao);
         } catch (NumberFormatException ex) {
             erro("Valores numéricos inválidos para gerar o objeto.");
         }
+    }
+
+    // Translada o objeto para que o centro geométrico fique na origem: T(-cx, -cy)
+    private void levarAoCentro() {
+        Ponto c = atual.centro();
+        double tx = -c.getX();
+        double ty = -c.getY();
+        Matriz t = Transformacoes2D.translacao(tx, ty);
+        atual = atual.transformar(t);
+        registrar("Levar ao centro: Translação T(" + f(tx) + ", " + f(ty) + ")",
+                "Centro geométrico atual: (" + f(c.getX()) + ", " + f(c.getY()) + ")\n"
+                        + "Matriz de Translação T(" + f(tx) + ", " + f(ty) + "):\n" + t);
+        atualizarTudo();
+        statusLabel.setText(" Objeto levado ao centro (0, 0).");
     }
 
     // Botão "Aplicar ..." de cada aba
@@ -878,7 +914,7 @@ public class TelaLab3 extends JFrame {
     }
 
     // Monta "rótulo | campo" em duas colunas e o botão embaixo
-    private JPanel formulario(String[] rotulos, JComponent[] campos, JButton botao) {
+    private JPanel formulario(String[] rotulos, JComponent[] campos, JComponent botao) {
         JPanel grade = new JPanel(new GridLayout(0, 2, 6, 4));
         grade.setBackground(FACE);
         for (int i = 0; i < rotulos.length; i++) {
