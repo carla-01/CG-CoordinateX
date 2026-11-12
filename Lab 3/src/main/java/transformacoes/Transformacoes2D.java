@@ -97,6 +97,34 @@ public class Transformacoes2D {
         });
     }
 
+    // Em torno da reta horizontal y = c:  (x, y) -> (x, 2c - y)
+    // Mesma ideia do ponto fixo (slides 24 a 26): leva a reta para o eixo x,
+    // reflete em x e traz de volta.
+    //   C = T(0, c) . Refl_x . T(0, -c)
+    public static Matriz reflexaoRetaYIgualC(double c) {
+        return translacao(0, c).multiplicar(reflexaoEixoX()).multiplicar(translacao(0, -c));
+    }
+
+    // Em torno da reta vertical x = c:  (x, y) -> (2c - x, y)
+    //   C = T(c, 0) . Refl_y . T(-c, 0)
+    public static Matriz reflexaoRetaXIgualC(double c) {
+        return translacao(c, 0).multiplicar(reflexaoEixoY()).multiplicar(translacao(-c, 0));
+    }
+
+    // Em torno de uma reta qualquer y = m.x + b  (θ = arctg(m) é o ângulo da reta):
+    //   1) T(0, -b)   leva a reta para passar pela origem
+    //   2) R(-θ)      gira a reta até o eixo x
+    //   3) Refl_x     reflete em x
+    //   4) R(θ)       gira de volta
+    //   5) T(0, b)    translada de volta
+    //   C = T(0, b) . R(θ) . Refl_x . R(-θ) . T(0, -b)
+    // (reta vertical não tem m: use reflexaoRetaXIgualC)
+    public static Matriz reflexaoRetaQualquer(double m, double b) {
+        double grausTheta = Math.toDegrees(Math.atan(m));
+        return translacao(0, b).multiplicar(rotacao(grausTheta)).multiplicar(reflexaoEixoX())
+                .multiplicar(rotacao(-grausTheta)).multiplicar(translacao(0, -b));
+    }
+
     // ===== Cisalhamento (slide 20) =====
 
     // Cisalhamento em x:  x' = x + a.y    y' = y

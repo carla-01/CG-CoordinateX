@@ -86,6 +86,8 @@ public class TelaLab3 extends JFrame {
     private JTextField campoSx, campoSy, campoEscX, campoEscY;
     private JTextField campoCisA, campoCisB;
     private JRadioButton radioRefX, radioRefY, radioRefOrigem, radioRefYX, radioRefYMenosX;
+    private JRadioButton radioRefXC, radioRefYC, radioRefQualquer;
+    private JTextField campoRefC, campoRefM, campoRefB;
 
     // ---- sequência (transformações compostas) ----
     private List<Operacao> sequencia = new ArrayList<Operacao>();
@@ -253,25 +255,48 @@ public class TelaLab3 extends JFrame {
         radioRefOrigem = new JRadioButton("Origem");
         radioRefYX = new JRadioButton("Reta y = x");
         radioRefYMenosX = new JRadioButton("Reta y = -x");
+        radioRefXC = new JRadioButton("Reta x = c");
+        radioRefYC = new JRadioButton("Reta y = c");
+        radioRefQualquer = new JRadioButton("Reta y = m.x + b");
         ButtonGroup grupo = new ButtonGroup();
         JPanel opcoes = new JPanel(new GridLayout(0, 2, 4, 2));
         opcoes.setBackground(FACE);
-        JRadioButton[] radios = { radioRefX, radioRefY, radioRefOrigem, radioRefYX, radioRefYMenosX };
+        JRadioButton[] radios = { radioRefX, radioRefY, radioRefOrigem, radioRefYX, radioRefYMenosX,
+                radioRefXC, radioRefYC, radioRefQualquer };
         for (JRadioButton r : radios) {
             r.setBackground(FACE);
             grupo.add(r);
             opcoes.add(r);
         }
+
+        // c vale para "x = c" e "y = c"; m e b para "y = m.x + b"
+        campoRefC = criarCampo("50");
+        campoRefM = criarCampo("1");
+        campoRefB = criarCampo("0");
+        JPanel parametros = new JPanel(new GridLayout(1, 6, 4, 0));
+        parametros.setBackground(FACE);
+        parametros.add(new JLabel("c:"));
+        parametros.add(campoRefC);
+        parametros.add(new JLabel("m:"));
+        parametros.add(campoRefM);
+        parametros.add(new JLabel("b:"));
+        parametros.add(campoRefB);
+
+        JPanel centro = new JPanel(new BorderLayout(0, 6));
+        centro.setBackground(FACE);
+        centro.add(opcoes, BorderLayout.CENTER);
+        centro.add(parametros, BorderLayout.SOUTH);
+
         JButton bRef = criarBotao("Aplicar Reflexão");
         bRef.addActionListener(e -> aplicarDaAba(4));
         JPanel abaRef = new JPanel(new BorderLayout(0, 6));
         abaRef.setBackground(FACE);
         abaRef.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
-        abaRef.add(opcoes, BorderLayout.CENTER);
+        abaRef.add(centro, BorderLayout.CENTER);
         abaRef.add(bRef, BorderLayout.SOUTH);
         abas.addTab("Reflex", abaRef);
 
-        abas.setMaximumSize(new Dimension(Integer.MAX_VALUE, 190));
+        abas.setMaximumSize(new Dimension(Integer.MAX_VALUE, 260));
         return abas;
     }
 
@@ -577,11 +602,66 @@ public class TelaLab3 extends JFrame {
         } else if (radioRefYX.isSelected()) {
             m = Transformacoes2D.reflexaoRetaYX();
             nome = "Reflexão em torno da reta y = x";
-        } else {
+        } else if (radioRefYMenosX.isSelected()) {
             m = Transformacoes2D.reflexaoRetaYMenosX();
             nome = "Reflexão em torno da reta y = -x";
+        } else if (radioRefXC.isSelected()) {
+            double c = lerNumero(campoRefC);
+            m = Transformacoes2D.reflexaoRetaXIgualC(c);
+            nome = "Reflexão em torno da reta x = " + f(c);
+            return new Operacao(nome, m,
+                    "1) Translada a reta para o eixo y T(" + f(-c) + ", 0):\n" + Transformacoes2D.translacao(-c, 0)
+                            + "2) Reflexão em torno do eixo y:\n" + Transformacoes2D.reflexaoEixoY()
+                            + "3) Translada de volta T(" + f(c) + ", 0):\n" + Transformacoes2D.translacao(c, 0)
+                            + "Matriz final C = T(" + f(c) + ", 0) . Refl_y . T(" + f(-c) + ", 0):\n" + m);
+        } else if (radioRefYC.isSelected()) {
+            double c = lerNumero(campoRefC);
+            m = Transformacoes2D.reflexaoRetaYIgualC(c);
+            nome = "Reflexão em torno da reta y = " + f(c);
+            return new Operacao(nome, m,
+                    "1) Translada a reta para o eixo x T(0, " + f(-c) + "):\n" + Transformacoes2D.translacao(0, -c)
+                            + "2) Reflexão em torno do eixo x:\n" + Transformacoes2D.reflexaoEixoX()
+                            + "3) Translada de volta T(0, " + f(c) + "):\n" + Transformacoes2D.translacao(0, c)
+                            + "Matriz final C = T(0, " + f(c) + ") . Refl_x . T(0, " + f(-c) + "):\n" + m);
+        } else {
+            double inclinacao = lerNumero(campoRefM);
+            double b = lerNumero(campoRefB);
+            double theta = Math.toDegrees(Math.atan(inclinacao));
+            m = Transformacoes2D.reflexaoRetaQualquer(inclinacao, b);
+            nome = "Reflexão em torno da reta " + equacaoReta(inclinacao, b);
+            return new Operacao(nome, m,
+                    "θ = arctg(" + f(inclinacao) + ") = " + f(theta) + "°\n"
+                            + "1) Translada a reta para a origem T(0, " + f(-b) + "):\n"
+                            + Transformacoes2D.translacao(0, -b)
+                            + "2) Gira a reta até o eixo x R(" + f(-theta) + "°):\n"
+                            + Transformacoes2D.rotacao(-theta)
+                            + "3) Reflexão em torno do eixo x:\n" + Transformacoes2D.reflexaoEixoX()
+                            + "4) Gira de volta R(" + f(theta) + "°):\n" + Transformacoes2D.rotacao(theta)
+                            + "5) Translada de volta T(0, " + f(b) + "):\n" + Transformacoes2D.translacao(0, b)
+                            + "Matriz final C = T(0, b) . R(θ) . Refl_x . R(-θ) . T(0, -b):\n" + m);
         }
         return new Operacao(nome, m, "Matriz de " + nome + ":\n" + m);
+    }
+
+    // "y = 2x + 10", "y = -0.5x - 40", "y = x"
+    private String equacaoReta(double m, double b) {
+        String texto = "y = ";
+        if (m == 0) {
+            return texto + f(b);
+        }
+        if (m == 1) {
+            texto += "x";
+        } else if (m == -1) {
+            texto += "-x";
+        } else {
+            texto += f(m) + "x";
+        }
+        if (b > 0) {
+            texto += " + " + f(b);
+        } else if (b < 0) {
+            texto += " - " + f(-b);
+        }
+        return texto;
     }
 
     // Texto do passo a passo de uma transformação com ponto fixo (slides 24 a 26)
@@ -971,6 +1051,9 @@ public class TelaLab3 extends JFrame {
                         + "Reflexão origem  = [-1 0 0; 0 -1 0; 0 0 1]\n"
                         + "Reflexão y = x   = [0 1 0; 1 0 0; 0 0 1]\n"
                         + "Reflexão y = -x  = [0 -1 0; -1 0 0; 0 0 1]\n"
+                        + "Reflexão x = c   = [-1 0 2c; 0 1 0; 0 0 1]   = T(c,0) . Refl_y . T(-c,0)\n"
+                        + "Reflexão y = c   = [1 0 0; 0 -1 2c; 0 0 1]   = T(0,c) . Refl_x . T(0,-c)\n"
+                        + "Reflexão y = mx+b: C = T(0,b) . R(θ) . Refl_x . R(-θ) . T(0,-b),  θ = arctg(m)\n"
                         + "Cisalhamento x   = [1 a 0; 0 1 0; 0 0 1]\n"
                         + "Cisalhamento y   = [1 0 0; b 1 0; 0 0 1]\n\n"
                         + "Ponto fixo (p):   C = T(p) . S ou R . T(-p)\n"
