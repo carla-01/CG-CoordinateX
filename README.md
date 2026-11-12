@@ -9,6 +9,7 @@ Repositório dos laboratórios da disciplina de **Computação Gráfica**.
 |---|---|---|
 | **Lab 1** | Transformação de coordenadas: Mundo → NDC → Dispositivo (e o caminho inverso) | [`Lab 1/`](Lab%201/) |
 | **Lab 1 – Extra** | Tabela de cores (LUT) de 24 bits para pixels de 12 bits | [`Lab 1 - Extra/`](Lab%201%20-%20Extra/) |
+| **Lab 3** | Transformações geométricas 2D (aula G5) em um polígono na origem, desenhado com o ponto médio (aula G3) | [`Lab 3/`](Lab%203/) |
 
 Os dois labs também podem ser abertos por uma **interface gráfica única** (`frontend.Interface`), que tem uma tela inicial com um botão para cada lab.
 
@@ -108,6 +109,7 @@ São três pontos de entrada:
 | Lab 1 (console + tela cheia) | `Lab 1` | `app.Main` |
 | Interface gráfica com os dois labs | `Lab 1` | `frontend.Interface` |
 | Lab Extra sozinho | `Lab 1 - Extra` | `tabelacores.MainTabelaCores` |
+| Lab 3 (transformações 2D) | `Lab 3` | `app.Main` |
 
 ### Opção A — Terminal (Maven)
 
@@ -289,6 +291,80 @@ O `MainTabelaCores` imprime no console a comparação:
     - digite um índice no campo — em decimal (`384`) ou hexadecimal (`0x180`) — e aperte **Enter** ou **Ver cor**. Fora de `0…4095` aparece uma mensagem de erro.
 4. O inspetor mostra: amostra da cor, `#RRGGBB`, índice em hex/decimal, os **12 bits** do índice (`0001 1000 0000`), os canais R, G e B e o nome da tabela.
 5. Os botões **Colorida**, **Cinza** e **Fogo** trocam a tabela; a paleta é redesenhada e o inspetor atualiza a cor do mesmo índice.
+
+---
+
+## Lab 3 – Transformações geométricas 2D
+
+### Objetivo
+
+Implementar **todas as transformações geométricas da aula G5** e aplicá-las em um **polígono (regular ou irregular) que começa na origem** do sistema cartesiano. Cada lado do polígono é desenhado pixel a pixel com o **algoritmo do ponto médio** (Bresenham) da aula G3.
+
+### Como rodar
+
+```bash
+cd "Lab 3"
+mvn compile
+java -cp target/classes app.Main
+```
+
+No IntelliJ: abra a pasta **`Lab 3`**, escolha o SDK 24+ e rode `app.Main`.
+
+### Estrutura
+
+```
+Lab 3/
+├── pom.xml
+└── src/main/java/
+    ├── app/Main.java                      # ponto de entrada
+    ├── modelo/
+    │   ├── Ponto.java                     # ponto (x, y) do mundo
+    │   └── Poligono.java                  # regular (n lados) ou irregular (bandeira), centro na origem
+    ├── transformacoes/
+    │   ├── Matriz.java                    # matriz 3x3 homogênea: multiplicar e aplicar P' = M . P
+    │   ├── Transformacoes2D.java          # TODAS as matrizes da aula G5
+    │   └── Operacao.java                  # nome + matriz + passo a passo (para o histórico)
+    ├── rasterizacao/
+    │   ├── FrameBuffer.java               # imagem onde só se acende pixel
+    │   └── RetaPontoMedio.java            # algoritmo do ponto médio (G3), nos 8 octantes
+    └── frontend/
+        ├── TelaLab3.java                  # janela (layout do .jar de referência, visual do Lab 1)
+        ├── PainelMundo.java               # plano cartesiano -250..250, origem no centro
+        └── PainelViewport.java            # porta de visão 300 x 300
+```
+
+### Matrizes (coordenadas homogêneas, `P' = M · P` com `P = (x, y, 1)`)
+
+| Transformação | Matriz | Slide G5 |
+|---|---|---|
+| Translação `T(tx, ty)` | `[1 0 tx; 0 1 ty; 0 0 1]` | 6, 10, 17 |
+| Escala `S(sx, sy)` | `[sx 0 0; 0 sy 0; 0 0 1]` | 7, 10, 17 |
+| Rotação `R(θ)` | `[cosθ −senθ 0; senθ cosθ 0; 0 0 1]` | 8, 9, 11, 17 |
+| Reflexão no eixo x | `[1 0 0; 0 −1 0; 0 0 1]` | 18 |
+| Reflexão no eixo y | `[−1 0 0; 0 1 0; 0 0 1]` | 18 |
+| Reflexão na origem | `[−1 0 0; 0 −1 0; 0 0 1]` | 19 |
+| Reflexão na reta y = x | `[0 1 0; 1 0 0; 0 0 1]` | 19 (o "?") |
+| Cisalhamento em x | `[1 a 0; 0 1 0; 0 0 1]` | 20 |
+| Cisalhamento em y | `[1 0 0; b 1 0; 0 0 1]` | 20 |
+| Composta | `M = Mn · … · M2 · M1` | 21 |
+| Escala com ponto fixo | `C = T(px, py) · S · T(−px, −py)` | 22–25 |
+| Rotação com ponto fixo | `C = T(x, y) · R(θ) · T(−x, −y)` | 26–27 |
+| Janela → Viewport | `M = T(umin, vmin) · S((umax−umin)/(xmax−xmin), (vmax−vmin)/(ymax−ymin)) · T(−xmin, −ymin)` | 29–33 |
+
+> Exemplo do slide 25 conferido: escala 2 com ponto fixo (2,1) dá `C = [2 0 −2; 0 1 0; 0 0 1]`, e (4,1) vai para (6,1).
+
+### Algoritmo do ponto médio (G3)
+
+Mesmas fórmulas do slide 26: `d = 2dy − dx`, `incE = 2dy`, `incNE = 2(dy − dx)`; se `d ≤ 0` escolhe **E**, senão **NE**. Para os lados do polígono poderem ir em qualquer direção, o passo em x/y pode ser +1 ou −1 e, quando `|dy| > |dx|`, x e y trocam de papel. A reta de (20,10) a (30,18) gera exatamente os pixels da tabela do slide 28.
+
+### Usando a tela
+
+1. **Objeto 2D** — escolha *Regular* (nº de lados + raio) ou *Irregular (bandeira)* e clique em **Gerar Objeto**. O polígono nasce com centro em (0, 0).
+2. **Abas** — *Trans*, *Rot* (ângulo + ponto fixo), *Escala* (sx, sy + ponto fixo), *Cisal* (a em x, b em y) e *Reflex* (eixo x, eixo y, origem, y = x). Ponto fixo (0, 0) = transformação básica em torno da origem.
+3. **Sequência** — configure uma aba e clique em **Adicionar à Sequência** quantas vezes quiser; **Aplicar Sequência** multiplica tudo numa matriz só (`M = Mn…M1`) e aplica uma vez.
+4. **Mapeamento 2D** — marque *Ativar Window → Viewport*, defina a janela (mundo) e a viewport (0 a 299) e clique em **Aplicar Limites**. A janela aparece em vermelho no mundo e o conteúdo dela é desenhado na viewport.
+5. À direita ficam os **vértices**, o **centro geométrico** e as **dimensões**; embaixo, o **histórico** com todas as matrizes. **Limpar Tudo** volta o polígono para a origem.
+6. Menu **Exibir**: mostrar/ocultar o polígono original (cinza) e a grade.
 
 ---
 
