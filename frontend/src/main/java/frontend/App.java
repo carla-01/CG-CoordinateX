@@ -15,10 +15,26 @@ public class App {
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
-                JanelaPrincipal janela = new JanelaPrincipal();
+                final JanelaPrincipal janela = new JanelaPrincipal();
                 janela.adicionarLab(new TelaLab1(janela));
                 janela.adicionarLab(new TelaLab1Extra(janela));
                 janela.adicionarLab(new TelaLab2(janela));
+
+                // O Lab 3 tem janela própria: abre no lugar desta e, ao
+                // fechar, volta para a tela inicial
+                janela.adicionarLab("Lab 3 - Transformações Geométricas", new Runnable() {
+                    @Override
+                    public void run() {
+                        janela.setVisible(false);
+                        new TelaLab3(new Runnable() {
+                            @Override
+                            public void run() {
+                                janela.voltarAoInicio();
+                                janela.setVisible(true);
+                            }
+                        }).setVisible(true);
+                    }
+                });
                 janela.setVisible(true);
             }
         });

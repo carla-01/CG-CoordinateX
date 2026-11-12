@@ -85,7 +85,7 @@ public class TelaLab3 extends JFrame {
     private JTextField campoAngulo, campoRotX, campoRotY;
     private JTextField campoSx, campoSy, campoEscX, campoEscY;
     private JTextField campoCisA, campoCisB;
-    private JRadioButton radioRefX, radioRefY, radioRefOrigem, radioRefYX;
+    private JRadioButton radioRefX, radioRefY, radioRefOrigem, radioRefYX, radioRefYMenosX;
 
     // ---- sequência (transformações compostas) ----
     private List<Operacao> sequencia = new ArrayList<Operacao>();
@@ -114,11 +114,24 @@ public class TelaLab3 extends JFrame {
     private int arrastarX, arrastarY;
     private Rectangle limitesRestaurados;
 
+    // Aberta pela tela inicial do frontend: fechar volta para ela.
+    // null = aberta sozinha pelo app.Main: fechar encerra o programa.
+    private final Runnable voltarAoInicio;
+
     public TelaLab3() {
+        this(null);
+    }
+
+    public TelaLab3(Runnable voltarAoInicio) {
+        this.voltarAoInicio = voltarAoInicio;
         setUndecorated(true);
         setSize(1400, 880);
         setLocationRelativeTo(null);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        if (voltarAoInicio == null) {
+            setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        } else {
+            setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        }
 
         JPanel raiz = new JPanel(new BorderLayout());
         raiz.setBackground(FACE);
@@ -239,10 +252,11 @@ public class TelaLab3 extends JFrame {
         radioRefY = new JRadioButton("Eixo y");
         radioRefOrigem = new JRadioButton("Origem");
         radioRefYX = new JRadioButton("Reta y = x");
+        radioRefYMenosX = new JRadioButton("Reta y = -x");
         ButtonGroup grupo = new ButtonGroup();
-        JPanel opcoes = new JPanel(new GridLayout(2, 2, 4, 2));
+        JPanel opcoes = new JPanel(new GridLayout(0, 2, 4, 2));
         opcoes.setBackground(FACE);
-        JRadioButton[] radios = { radioRefX, radioRefY, radioRefOrigem, radioRefYX };
+        JRadioButton[] radios = { radioRefX, radioRefY, radioRefOrigem, radioRefYX, radioRefYMenosX };
         for (JRadioButton r : radios) {
             r.setBackground(FACE);
             grupo.add(r);
@@ -560,9 +574,12 @@ public class TelaLab3 extends JFrame {
         } else if (radioRefOrigem.isSelected()) {
             m = Transformacoes2D.reflexaoOrigem();
             nome = "Reflexão em torno da origem";
-        } else {
+        } else if (radioRefYX.isSelected()) {
             m = Transformacoes2D.reflexaoRetaYX();
             nome = "Reflexão em torno da reta y = x";
+        } else {
+            m = Transformacoes2D.reflexaoRetaYMenosX();
+            nome = "Reflexão em torno da reta y = -x";
         }
         return new Operacao(nome, m, "Matriz de " + nome + ":\n" + m);
     }
@@ -844,7 +861,7 @@ public class TelaLab3 extends JFrame {
         JButton restaurar = criarBotaoJanela("□");
         restaurar.addActionListener(e -> alternarMaximizar());
         JButton fechar = criarBotaoJanela("X");
-        fechar.addActionListener(e -> System.exit(0));
+        fechar.addActionListener(e -> fechar());
         botoes.add(minimizar);
         botoes.add(restaurar);
         botoes.add(fechar);
@@ -890,6 +907,15 @@ public class TelaLab3 extends JFrame {
         revalidate();
     }
 
+    // Volta para a tela inicial (se veio de lá) ou encerra o programa
+    private void fechar() {
+        if (voltarAoInicio == null) {
+            System.exit(0);
+        }
+        dispose();
+        voltarAoInicio.run();
+    }
+
     // ---------- Menu ----------
     private JMenuBar criarBarraMenu() {
         JMenuBar barra = new JMenuBar();
@@ -901,6 +927,11 @@ public class TelaLab3 extends JFrame {
         JMenuItem sair = new JMenuItem("Sair");
         sair.addActionListener(e -> System.exit(0));
         arquivo.add(limpar);
+        if (voltarAoInicio != null) {
+            JMenuItem inicio = new JMenuItem("Voltar ao inicio");
+            inicio.addActionListener(e -> fechar());
+            arquivo.add(inicio);
+        }
         arquivo.add(sair);
 
         JMenu exibir = new JMenu("Exibir");
@@ -939,6 +970,7 @@ public class TelaLab3 extends JFrame {
                         + "Reflexão y       = [-1 0 0; 0 1 0; 0 0 1]\n"
                         + "Reflexão origem  = [-1 0 0; 0 -1 0; 0 0 1]\n"
                         + "Reflexão y = x   = [0 1 0; 1 0 0; 0 0 1]\n"
+                        + "Reflexão y = -x  = [0 -1 0; -1 0 0; 0 0 1]\n"
                         + "Cisalhamento x   = [1 a 0; 0 1 0; 0 0 1]\n"
                         + "Cisalhamento y   = [1 0 0; b 1 0; 0 0 1]\n\n"
                         + "Ponto fixo (p):   C = T(p) . S ou R . T(-p)\n"

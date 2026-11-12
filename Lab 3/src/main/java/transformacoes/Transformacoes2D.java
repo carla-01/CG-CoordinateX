@@ -87,6 +87,16 @@ public class Transformacoes2D {
         });
     }
 
+    // Em torno da reta y = -x:  (x, y) -> (-y, -x)
+    // (troca x com y e inverte os dois sinais: é a de y = x seguida da origem)
+    public static Matriz reflexaoRetaYMenosX() {
+        return new Matriz(new double[][] {
+                { 0, -1, 0 },
+                { -1, 0, 0 },
+                { 0, 0, 1 }
+        });
+    }
+
     // ===== Cisalhamento (slide 20) =====
 
     // Cisalhamento em x:  x' = x + a.y    y' = y

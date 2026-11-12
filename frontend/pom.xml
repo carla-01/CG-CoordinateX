@@ -32,6 +32,11 @@
             <artifactId>lab2</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.example</groupId>
+            <artifactId>lab3</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
     <build>

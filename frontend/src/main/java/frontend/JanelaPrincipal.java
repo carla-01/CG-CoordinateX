@@ -74,6 +74,19 @@ public class JanelaPrincipal extends JFrame implements Navegacao {
         botoesLabs.add(botao);
     }
 
+    // Registra um lab que tem janela própria (ex.: o Lab 3): o botão da tela
+    // inicial só chama "abrir", que esconde esta janela e mostra a do lab
+    public void adicionarLab(String nome, final Runnable abrir) {
+        JButton botao = criarBotaoInicial(nome);
+        botao.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                abrir.run();
+            }
+        });
+        botoesLabs.add(botao);
+    }
+
     public void voltarAoInicio() {
         barraTitulo.setTitulo(TITULO);
         layoutCards.show(painelCards, INICIAL);
