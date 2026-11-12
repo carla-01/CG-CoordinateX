@@ -20,8 +20,8 @@ public class PainelViewport extends JPanel {
     public static final int TAMANHO = 300;
 
     private static final Color COR_EIXO = new Color(0x808080);
-    private static final Color COR_POLIGONO = new Color(0x000080);
-    private static final Color COR_BORDA = new Color(0xC00000);
+    private static final Color COR_POLIGONO = Color.WHITE;
+    private static final Color COR_BORDA = new Color(0xFF4040);
 
     private FrameBuffer frameBuffer = new FrameBuffer(TAMANHO, TAMANHO);
 
@@ -39,17 +39,17 @@ public class PainelViewport extends JPanel {
 
     public PainelViewport() {
         setPreferredSize(new Dimension(TAMANHO, TAMANHO));
-        setBackground(Color.WHITE);
+        setBackground(Color.BLACK);
     }
 
     public void limpar() {
-        frameBuffer.limpar(Color.WHITE);
+        frameBuffer.limpar(Color.BLACK);
         repaint();
     }
 
     // m = matriz janela -> viewport; janela = {xmin, xmax, ymin, ymax}; viewport = {umin, umax, vmin, vmax}
     public void desenhar(Poligono poligono, Matriz m, double[] janela, double[] viewport) {
-        frameBuffer.limpar(Color.WHITE);
+        frameBuffer.limpar(Color.BLACK);
         umin = (int) Math.round(viewport[0]);
         umax = (int) Math.round(viewport[1]);
         vmin = (int) Math.round(viewport[2]);

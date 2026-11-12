@@ -11,7 +11,7 @@ public class FrameBuffer {
 
     public FrameBuffer(int largura, int altura) {
         imagem = new BufferedImage(largura, altura, BufferedImage.TYPE_INT_RGB);
-        limpar(Color.WHITE);
+        limpar(Color.BLACK);
     }
 
     public void limpar(Color fundo) {

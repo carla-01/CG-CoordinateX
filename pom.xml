@@ -9,14 +9,62 @@
     <artifactId>CG-CoordinateX</artifactId>
     <version>1.0-SNAPSHOT</version>
 
-    <!-- "pom" = esse projeto não tem código, só agrupa os labs -->
+    <!-- "pom" = esse projeto não tem código, só agrupa os módulos -->
     <packaging>pom</packaging>
 
-    <!-- Cada lab novo entra aqui com uma linha -->
+    <!--
+        core      -> base comum (modelo + frame buffer), sem interface
+        Lab N     -> só os algoritmos do lab, sem interface
+        frontend  -> a única interface gráfica; depende de todos os labs
+
+        Lab novo: crie a pasta, adicione o <module> aqui e a
+        dependência no frontend/pom.xml.
+    -->
     <modules>
+        <module>core</module>
         <module>Lab 1</module>
         <module>Lab 1 - Extra</module>
+        <module>Lab 2</module>
         <module>Lab 3</module>
+        <module>frontend</module>
     </modules>
+
+    <properties>
+        <!-- JDK 24 (openjdk-24 no IntelliJ) -->
+        <maven.compiler.release>24</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <!-- JUnit só para os testes (mvn test); não entra no programa -->
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.10.2</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.2.5</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.13.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>3.4.2</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
 
 </project>

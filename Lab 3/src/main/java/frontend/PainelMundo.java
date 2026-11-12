@@ -20,11 +20,11 @@ public class PainelMundo extends JPanel {
     public static final int TAMANHO = 501;     // 501 x 501 pixels
     public static final int MEIO = TAMANHO / 2; // pixel da origem = 250
 
-    private static final Color COR_GRADE = new Color(0xE6E6E6);
+    private static final Color COR_GRADE = new Color(0x2A2A2A);
     private static final Color COR_EIXO = new Color(0x808080);
-    private static final Color COR_ORIGINAL = new Color(0xB8B8B8);
-    private static final Color COR_POLIGONO = new Color(0x000080);
-    private static final Color COR_JANELA = new Color(0xC00000);
+    private static final Color COR_ORIGINAL = new Color(0x5A5A5A);
+    private static final Color COR_POLIGONO = Color.WHITE;
+    private static final Color COR_JANELA = new Color(0xFF4040);
 
     private FrameBuffer frameBuffer = new FrameBuffer(TAMANHO, TAMANHO);
 
@@ -39,13 +39,13 @@ public class PainelMundo extends JPanel {
 
     public PainelMundo() {
         setPreferredSize(new Dimension(TAMANHO, TAMANHO));
-        setBackground(Color.WHITE);
+        setBackground(Color.BLACK);
     }
 
     // Redesenha tudo do zero no frame buffer
     public void desenhar(Poligono atual, Poligono original, boolean mostrarOriginal,
                          boolean mostrarGrade, double[] janela) {
-        frameBuffer.limpar(Color.WHITE);
+        frameBuffer.limpar(Color.BLACK);
 
         if (mostrarGrade) {
             for (int k = -200; k <= 200; k += 50) {
