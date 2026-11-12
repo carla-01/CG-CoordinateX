@@ -10,9 +10,9 @@ Repositório dos laboratórios da disciplina de **Computação Gráfica**.
 | **Lab 1** | Transformação de coordenadas: Mundo → NDC → Dispositivo (e o caminho inverso) | [`Lab 1/`](Lab%201/) |
 | **Lab 1 – Extra** | Tabela de cores (LUT) de 24 bits para pixels de 12 bits | [`Lab 1 - Extra/`](Lab%201%20-%20Extra/) |
 | **Lab 2** | Rasterização de retas (DDA, Ponto Médio/Bresenham) e circunferências (polinomial, trigonométrico, ponto médio) | [`Lab 2/`](Lab%202/) |
-| **Lab 3** | Transformações geométricas 2D (aula G5) em um polígono na origem, desenhado com o ponto médio do Lab 2 | [`Lab 3/`](Lab%203/) |
+| **Lab 3** | Transformações geométricas 2D (aula G5) em um polígono 2D (gerado fora da origem, com botão para levá-lo ao centro), desenhado com o ponto médio | [`Lab 3/`](Lab%203/) |
 
-Todos os labs são abertos por uma **interface gráfica única** (`frontend.App`), com uma tela inicial que tem um botão para cada lab.
+Todos os labs são abertos por uma **interface gráfica única** (`frontend.App`), com uma tela inicial que tem um botão para cada lab. Prints de cada lab estão na pasta [`prints/`](prints/) (veja [Prints](#prints)).
 
 ---
 
@@ -26,8 +26,9 @@ Todos os labs são abertos por uma **interface gráfica única** (`frontend.App`
 6. [Lab 1 – Extra: Tabela de cores](#lab-1--extra-tabela-de-cores)
 7. [Lab 2 – Retas e circunferências](#lab-2--retas-e-circunferências)
 8. [Lab 3 – Transformações geométricas 2D](#lab-3--transformações-geométricas-2d)
-9. [Como adicionar um lab novo](#como-adicionar-um-lab-novo)
-10. [Problemas comuns](#problemas-comuns)
+9. [Prints](#prints)
+10. [Como adicionar um lab novo](#como-adicionar-um-lab-novo)
+11. [Problemas comuns](#problemas-comuns)
 
 ---
 
@@ -62,15 +63,18 @@ O projeto é um Maven **multi-módulo**. A regra principal: **os labs só têm o
                  │  App, telas de cada lab,     │  único ponto de entrada
                  │  componentes compartilhados  │
                  └───┬──────────┬───────────┬───┘
-                     │          │           │
-              ┌──────▼──┐ ┌─────▼──────┐ ┌──▼──────┐ ┌─────────┐
-              │  Lab 1  │ │Lab 1 Extra │ │  Lab 2  │◄┤  Lab 3  │  só algoritmos dos slides
-              └──────┬──┘ └────────────┘ └──┬──────┘ └────┬────┘  (sem Swing)
-                     │                      │             │
-                 ┌───▼──────────────────────▼─────────────▼───┐
-                 │             core             │  base comum: Ponto, Pixel,
-                 └────────────────────────────────────────────┘  JanelaMundo, FrameBuffer
+                     │          │           ├────────────┐
+              ┌──────▼──┐ ┌─────▼──────┐ ┌──▼──────┐ ┌──▼──────┐
+              │  Lab 1  │ │Lab 1 Extra │ │  Lab 2  │ │  Lab 3  │
+              └──────┬──┘ └────────────┘ └──┬──────┘ └─────────┘
+                     │                      │      (independente: tem os próprios
+                 ┌───▼──────────────────────▼───┐   Ponto, FrameBuffer, RetaPontoMedio
+                 │             core             │   e a sua janela Swing, TelaLab3)
+                 └──────────────────────────────┘  base comum: Ponto, Pixel,
+                                                   JanelaMundo, FrameBuffer
 ```
+
+> Exceção: o **Lab 3** é um módulo independente, com a sua própria janela (`TelaLab3`). O `frontend` só abre essa janela a partir do botão da tela inicial.
 
 ```
 CG-CoordinateX/
@@ -114,13 +118,24 @@ CG-CoordinateX/
 │           └── CircunferenciaPontoMedio.java      # Ponto Médio / Bresenham
 │
 ├── Lab 3/                                  # transformações geométricas 2D
-│   └── src/main/java/lab3/
+│   └── src/main/java/
 │       ├── transformacoes/
 │       │   ├── Matriz.java                 # matriz 3x3 homogênea: P' = M . P
 │       │   ├── Transformacoes2D.java       # todas as matrizes da aula G5
 │       │   └── Operacao.java               # nome + matriz + passo a passo (log)
-│       └── poligono/
-│           └── Poligono.java               # regular/irregular na origem; desenha com o RetaPontoMedio do Lab 2
+│       ├── modelo/
+│       │   ├── Poligono.java               # regular/irregular, centro, largura e altura
+│       │   └── Ponto.java
+│       ├── rasterizacao/
+│       │   ├── FrameBuffer.java
+│       │   └── RetaPontoMedio.java         # desenha cada lado do polígono
+│       ├── frontend/
+│       │   ├── TelaLab3.java               # janela do Lab 3 (painéis, abas, histórico)
+│       │   ├── PainelMundo.java            # mundo 500 x 500, origem no centro
+│       │   └── PainelViewport.java         # viewport 300 x 300
+│       └── app/Main.java                   # abre só o Lab 3
+│
+├── prints/                                 # prints de cada lab (uma pasta por lab)
 │
 └── frontend/                               # interface gráfica
     └── src/main/java/frontend/
@@ -397,11 +412,13 @@ Todos calculam só 1/8 da circunferência (de 90° a 45°) e usam a **simetria d
 
 ### Objetivo
 
-Implementar **todas as transformações geométricas da aula G5** e aplicá-las em um **polígono (regular ou irregular) que começa na origem** do sistema cartesiano. Cada lado do polígono é desenhado com o **algoritmo do ponto médio** da aula G3 — o mesmo `lab2.reta.RetaPontoMedio` do Lab 2 (por isso o `Lab 3` depende do `Lab 2`).
+Implementar **todas as transformações geométricas da aula G5** e aplicá-las em um **polígono 2D (regular ou irregular)**. O polígono é criado **fora da origem** (centro padrão em `(100, 80)`), para que as transformações — principalmente as **reflexões** — fiquem bem visíveis; o botão **Levar ao Centro (0, 0)** traz o objeto para a origem quando preciso. Cada lado do polígono é desenhado com o **algoritmo do ponto médio** da aula G3 (`rasterizacao.RetaPontoMedio`).
+
+> **Por que gerar fora do centro?** Um polígono regular centrado na origem é simétrico em relação ao eixo y: refletir no eixo y dá praticamente a mesma figura, e não dá para perceber que algo mudou. Com o centro em `(100, 80)`, a reflexão no eixo y leva o objeto para `(−100, 80)`.
 
 ### Matrizes (coordenadas homogêneas, `P' = M · P` com `P = (x, y, 1)`)
 
-Todas ficam em `lab3.transformacoes.Transformacoes2D`, escritas como nos slides:
+Todas ficam em `transformacoes.Transformacoes2D`, escritas como nos slides:
 
 | Transformação | Matriz | Slide G5 |
 |---|---|---|
@@ -412,6 +429,10 @@ Todas ficam em `lab3.transformacoes.Transformacoes2D`, escritas como nos slides:
 | Reflexão no eixo y | `[−1 0 0; 0 1 0; 0 0 1]` | 18 |
 | Reflexão na origem | `[−1 0 0; 0 −1 0; 0 0 1]` | 19 |
 | Reflexão na reta y = x | `[0 1 0; 1 0 0; 0 0 1]` | 19 (o "?") |
+| Reflexão na reta y = −x | `[0 −1 0; −1 0 0; 0 0 1]` | — |
+| Reflexão na reta x = c | `C = T(c, 0) · Refl_y · T(−c, 0)` | — |
+| Reflexão na reta y = c | `C = T(0, c) · Refl_x · T(0, −c)` | — |
+| Reflexão na reta y = m·x + b | `C = T(0, b) · R(θ) · Refl_x · R(−θ) · T(0, −b)`, com `θ = arctg(m)` | — |
 | Cisalhamento em x | `[1 a 0; 0 1 0; 0 0 1]` | 20 |
 | Cisalhamento em y | `[1 0 0; b 1 0; 0 0 1]` | 20 |
 | Composta | `M = Mn · … · M2 · M1` | 21 |
@@ -423,26 +444,49 @@ Todas ficam em `lab3.transformacoes.Transformacoes2D`, escritas como nos slides:
 
 ### Passo a passo na interface
 
-A tela segue o layout padrão (`TelaLab`) com os mesmos painéis da tela "2D" do programa de referência:
+O Lab 3 abre em uma **janela própria** (ao fechar, volta para a tela inicial):
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ [Limpar Tudo] [x] Polígono original [x] Plano cartesiano  Zoom   │
-├──────────────┬───────────────────────────────┬───────────────────┤
-│ Objeto 2D    │                               │ Viewport          │
-│ Sequência    │  Mundo (−200..200, origem     │                   │
-│ Mapeamento 2D│  no centro)                   │ Informações       │
-├──────────────┴───────────────────────────────┼───────────────────┤
-│ [Trans] [Rot] [Escala] [Cisal] [Reflex]      │ Log (matrizes)    │
-└──────────────────────────────────────────────┴───────────────────┘
+┌───────────────────────────────────────────────────────────────────────────┐
+│ Arquivo  Exibir  Ajuda                                                    │
+├───────────────┬──────────────────────────────────────────┬────────────────┤
+│ Objeto 2D     │  Mundo (500 x 500)     Viewport (300x300)│ Informações    │
+│ [Trans][Rot]  │  origem no centro                        │  Vértices      │
+│ [Escala]...   │                                          │  Centro geom.  │
+│ Sequência     ├──────────────────────────────────────────┤  Dimensões     │
+│ Mapeamento 2D │  Histórico de operações e matrizes       │ [Limpar Tudo]  │
+└───────────────┴──────────────────────────────────────────┴────────────────┘
 ```
 
-1. **Objeto 2D** — escolha *Regular* (nº de lados + raio) ou *Irregular* (uma bandeira não simétrica, para as reflexões ficarem visíveis) e clique em **Gerar Objeto**. O polígono nasce com centro em **(0, 0)** e aparece em verde (`00FF00`).
-2. **Abas** — *Trans*, *Rot* (ângulo + ponto fixo), *Escala* (sx, sy + ponto fixo), *Cisal* (a em x, b em y) e *Reflex* (eixo x, eixo y, origem, y = x). Com ponto fixo (0, 0) é a transformação básica, em torno da origem; com outro ponto, o log mostra `T(−p)`, a matriz básica, `T(p)` e a matriz final `C`.
-3. **Sequência** — o botão **+ Sequência** de cada aba guarda a transformação; **Aplicar Sequência** multiplica tudo numa matriz só (`M = Mn…M1`) e aplica uma vez.
-4. **Mapeamento 2D** — marque *Ativar Window -> Viewport*, defina a window (mundo) e a viewport (0 a 199) e clique em **Aplicar Limites**. A window aparece em vermelho no mundo e o que está dentro dela é desenhado na viewport (v cresce para cima).
-5. À direita ficam os **vértices**, o **centro geométrico** e as **dimensões**; o **log** guarda todas as matrizes e os vértices resultantes. **Limpar Tudo** volta o polígono para a origem.
-6. O polígono original fica em cinza (caixa **Polígono original**). Os eixos são só referência visual (não acendem pixels).
+1. **Objeto 2D** — escolha *Regular* (nº de lados + raio) ou *Irregular* (uma bandeira não simétrica), defina o **Centro x / Centro y** (padrão `(100, 80)`) e clique em **Gerar Objeto**. O polígono é montado na origem e transladado para o centro escolhido.
+2. **Levar ao Centro (0, 0)** — calcula o centro geométrico `(cx, cy)` do objeto atual e aplica a translação `T(−cx, −cy)`. A operação e a matriz vão para o histórico, como qualquer outra transformação.
+3. **Abas** — *Trans*, *Rot* (ângulo + ponto fixo), *Escala* (sx, sy + ponto fixo), *Cisal* (a em x, b em y) e *Reflex* (eixo x, eixo y, origem, y = x, y = −x, x = c, y = c e y = m·x + b). Com ponto fixo (0, 0) é a transformação básica, em torno da origem; com outro ponto, o histórico mostra `T(−p)`, a matriz básica, `T(p)` e a matriz final `C`.
+4. **Sequência** — **Adicionar à Sequência** guarda a transformação configurada na aba; **Aplicar Sequência** multiplica tudo numa matriz só (`M = Mn…M1`) e aplica uma vez.
+5. **Mapeamento 2D** — marque *Ativar Window → Viewport*, defina a window (mundo) e a viewport (0 a 299) e clique em **Aplicar Limites**. A window aparece em vermelho no mundo e o que está dentro dela é desenhado na viewport.
+6. À direita ficam os **vértices**, o **centro geométrico** e as **dimensões**; o histórico guarda todas as matrizes e os vértices resultantes. **Limpar Tudo** gera de novo o objeto original (no centro escolhido).
+7. O polígono original fica em cinza (menu **Exibir → Mostrar polígono original**). A grade também pode ser desligada no menu **Exibir**.
+
+> **Polígono regular "de pé".** Os vértices são distribuídos num círculo de raio `r`. Com nº de lados **ímpar** o primeiro vértice fica em cima (90°). Com nº **par** ele começa meio passo depois (`90° + 180°/n`); sem isso o quadrado teria vértices exatamente sobre os eixos — `(0, r)`, `(−r, 0)`, `(0, −r)`, `(r, 0)` — e apareceria como um **losango**.
+
+---
+
+## Prints
+
+A pasta [`prints/`](prints/) tem uma subpasta por lab com o básico de cada um:
+
+| Pasta | Prints |
+|---|---|
+| [`Tela inicial/`](prints/Tela%20inicial/) | Tela inicial com os botões dos labs |
+| [`Lab 1/`](prints/Lab%201/) | Transformação Mundo → NDC → Dispositivo (ponto (50, 50) → pixel (960, 540), zoom 1x: o pixel verde é um pixel real do monitor) |
+| [`Lab 1 - Extra/`](prints/Lab%201%20-%20Extra/) | Paleta com a tabela colorida e consulta do índice `0x180` |
+| [`Lab 2/`](prints/Lab%202/) | Reta (Ponto Médio), teste dos 8 octantes e circunferência (Ponto Médio, raio 18) |
+| [`Lab 3/`](prints/Lab%203/) | Objeto inicial em (100, 80), reflexão no eixo y, levar ao centro, rotação de 45° e Window → Viewport |
+
+| Lab 1 | Lab 1 – Extra |
+|---|---|
+| ![Lab 1](prints/Lab%201/mundo_para_dispositivo.png) | ![Lab 1 Extra](prints/Lab%201%20-%20Extra/1_tabela_colorida.png) |
+| **Lab 2** | **Lab 3** |
+| ![Lab 2](prints/Lab%202/2_reta_8_octantes.png) | ![Lab 3](prints/Lab%203/2_reflexao_eixo_y.png) |
 
 ---
 
@@ -464,6 +508,7 @@ Exemplo para o **Lab 4** (foi assim que o Lab 3 entrou):
 |---|---|
 | `error: release version 24 not supported` | O Maven está usando um JDK antigo. Aponte o `JAVA_HOME` para um JDK 24+. |
 | `UnsupportedClassVersionError` ao rodar `java -jar …` | O `java` do PATH é mais antigo que o JDK que compilou. Use o `java` do JDK 24+. |
+| Tenho um JDK 24+ instalado, mas o PATH aponta para outro | No PowerShell, só para o terminal atual: `$env:JAVA_HOME = "C:\Program Files\Java\jdk-25.0.4"; $env:Path = "$env:JAVA_HOME\bin;$env:Path"` (troque pelo caminho do seu JDK). |
 | `package lab1.transformacao does not exist` (ou outro lab) na IDE | Abra a **pasta raiz** no IntelliJ (não a pasta de um lab) e recarregue o projeto Maven. |
 | Não encontro o pixel verde (Lab 1) | A tela rola até ele depois do Transformar. Com zoom ≥ 4x ele ganha um contorno magenta. |
 | Tela cheia não fecha | Clique na janela para dar foco e aperte **ESC**. |
